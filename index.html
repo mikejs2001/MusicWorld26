@@ -10,10 +10,17 @@
     <!-- Top Navigation -->
     <nav id="menu-bar">
         <div class="menu-brand">MusicWorld26-V01</div>
-        <div class="menu-links">
-            <button class="menu-btn active" data-view="mood-grid">Mood Grid</button>
-            <button class="menu-btn" data-view="add-tracks">Add Tracks</button>
-            <button class="menu-btn" data-view="settings">Settings</button>
+        <div class="menu-wrapper">
+            <button id="menu-dots" aria-label="Menu" aria-expanded="false">
+                <span class="dot-icon"></span>
+                <span class="dot-icon"></span>
+                <span class="dot-icon"></span>
+            </button>
+            <div id="menu-dropdown" class="dropdown hidden">
+                <button class="menu-btn active" data-view="mood-grid">Mood Grid</button>
+                <button class="menu-btn" data-view="add-tracks">Add Tracks</button>
+                <button class="menu-btn" data-view="settings">Settings</button>
+            </div>
         </div>
     </nav>
 

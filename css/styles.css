@@ -15,11 +15,35 @@ body{
     padding:0 16px;height:48px;flex-shrink:0;z-index:100;
 }
 .menu-brand{font-weight:700;font-size:15px;color:#00e676;margin-right:auto;letter-spacing:.5px}
-.menu-btn{
-    background:none;border:none;color:#888;font-size:13px;
-    padding:6px 14px;border-radius:6px;cursor:pointer;transition:.2s;
+
+/* Three-dot menu button */
+.menu-wrapper{position:relative}
+#menu-dots{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:none;border:none;cursor:pointer;
+    width:40px;height:40px;border-radius:8px;transition:.2s;
 }
-.menu-btn:hover{color:#e0e0e0;background:#1e1e1e}
+#menu-dots:hover{background:#1e1e1e}
+.dot-icon{
+    width:4px;height:4px;border-radius:50%;background:#aaa;
+    display:block;pointer-events:none;
+}
+
+/* Dropdown */
+.dropdown{
+    position:absolute;top:calc(100% + 6px);right:0;
+    background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;
+    min-width:180px;padding:6px 0;
+    box-shadow:0 8px 24px rgba(0,0,0,.6);
+    z-index:300;
+}
+.dropdown.hidden{display:none}
+.menu-btn{
+    display:block;width:100%;text-align:left;
+    background:none;border:none;color:#ccc;font-size:14px;
+    padding:12px 20px;cursor:pointer;transition:.15s;
+}
+.menu-btn:hover{color:#e0e0e0;background:#222}
 .menu-btn.active{color:#00e676;background:#1a2e1f}
 
 /* ===== Views ===== */

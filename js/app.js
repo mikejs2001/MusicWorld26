@@ -33,8 +33,24 @@
     await refreshGrid();
 
     /* ============================================================
-       Navigation
+       Navigation — three-dot dropdown
        ============================================================ */
+    const menuDotsBtn = $('#menu-dots');
+    const menuDropdown = $('#menu-dropdown');
+
+    menuDotsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = !menuDropdown.classList.contains('hidden');
+        menuDropdown.classList.toggle('hidden', open);
+        menuDotsBtn.setAttribute('aria-expanded', !open);
+    });
+
+    /* Close dropdown when tapping anywhere outside */
+    document.addEventListener('click', () => {
+        menuDropdown.classList.add('hidden');
+        menuDotsBtn.setAttribute('aria-expanded', 'false');
+    });
+
     $$('.menu-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             $$('.menu-btn').forEach(b => b.classList.remove('active'));
@@ -43,6 +59,9 @@
             $(`#view-${btn.dataset.view}`).classList.add('active');
             if (btn.dataset.view === 'mood-grid') MoodGrid.resize();
             if (btn.dataset.view === 'add-tracks') renderTrackList();
+            /* Close the dropdown after selection */
+            menuDropdown.classList.add('hidden');
+            menuDotsBtn.setAttribute('aria-expanded', 'false');
         });
     });
 
