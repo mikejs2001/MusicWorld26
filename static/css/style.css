@@ -1,0 +1,324 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+}
+
+header {
+    text-align: center;
+    padding: 30px 20px 10px;
+}
+
+header h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, #e94560, #0f3460);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+header p {
+    color: #888;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+/* Upload area */
+.upload-section {
+    max-width: 600px;
+    margin: 20px auto;
+    text-align: center;
+}
+
+.upload-area {
+    border: 2px dashed #444;
+    border-radius: 12px;
+    padding: 30px;
+    cursor: pointer;
+    transition: border-color 0.3s, background 0.3s;
+}
+
+.upload-area:hover,
+.upload-area.drag-over {
+    border-color: #e94560;
+    background: rgba(233, 69, 96, 0.05);
+}
+
+.upload-area p {
+    color: #888;
+    font-size: 1rem;
+}
+
+.upload-area .upload-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+#upload-status {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #77dd77;
+}
+
+/* Mood selector */
+.mood-section {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.mood-section h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    color: #ccc;
+}
+
+.mood-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.mood-btn {
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 20px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+    background: #16213e;
+}
+
+.mood-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.mood-btn.active {
+    border-color: currentColor;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.mood-btn .mood-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.mood-btn .mood-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: block;
+}
+
+.mood-btn .mood-desc {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Playlist */
+.playlist-section {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 20px 100px;
+}
+
+.playlist-section h2 {
+    text-align: center;
+    margin-bottom: 16px;
+    font-size: 1.3rem;
+    color: #ccc;
+}
+
+.playlist-empty {
+    text-align: center;
+    color: #666;
+    padding: 30px;
+}
+
+.track-list {
+    list-style: none;
+}
+
+.track-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    background: #16213e;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.track-item:hover {
+    background: #1a2744;
+}
+
+.track-item.playing {
+    background: #0f3460;
+    border-left: 3px solid #e94560;
+}
+
+.track-num {
+    color: #666;
+    font-size: 0.9rem;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.track-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.track-title {
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-meta {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+.track-match {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(119, 221, 119, 0.15);
+    color: #77dd77;
+}
+
+/* Player bar */
+.player-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #0f0f23;
+    border-top: 1px solid #333;
+    padding: 12px 20px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+}
+
+.player-bar.visible {
+    display: flex;
+}
+
+.player-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.player-controls button {
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.player-controls button:hover {
+    color: #e94560;
+}
+
+.player-track-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-track-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-progress-container {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-progress {
+    flex: 1;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.player-progress-fill {
+    height: 100%;
+    background: #e94560;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.player-time {
+    font-size: 0.75rem;
+    color: #888;
+    flex-shrink: 0;
+    min-width: 36px;
+}
+
+/* Track count */
+.track-count {
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+/* Loading spinner */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #888;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #444;
+    border-top-color: #e94560;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
