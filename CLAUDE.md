@@ -9,7 +9,31 @@
 
 ## Project Status
 
-This project is newly initialized. The structure, language, and framework choices have not yet been established. This file should be updated as the project evolves.
+This project uses Node.js to build a music library and playlist manager.
+
+## Tech Stack
+
+- **Language**: JavaScript (Node.js)
+- **Testing**: Node.js built-in test runner (`node --test`)
+
+## Project Structure
+
+```
+src/
+  index.js          # Entry point — demo of playlist functionality
+  playlist.js       # Playlist class (add, remove, list tracks)
+  playlist.test.js  # Tests for the Playlist class
+```
+
+## Build & Run
+
+```bash
+# Run the application
+npm start
+
+# Run tests
+npm test
+```
 
 ## Development Workflow
 
@@ -49,11 +73,7 @@ Update this CLAUDE.md whenever:
 
 As the codebase develops, expand this file with:
 
-- **Tech Stack**: Languages, frameworks, and major dependencies.
-- **Project Structure**: Directory layout and what each folder contains.
-- **Build & Run**: Commands to build, run, and test the project.
 - **Environment Setup**: Prerequisites, environment variables, and configuration.
-- **Testing**: How to run tests, testing conventions, and coverage requirements.
 - **Linting & Formatting**: Tools used and how to run them.
 - **Architecture**: Key design patterns, data flow, and component relationships.
 - **API Reference**: Endpoints, schemas, or interfaces if applicable.
