@@ -150,7 +150,7 @@
                 <span class="dot" style="background:hsl(${hue * t.moodX + 30 * (1 - t.moodX)},70%,55%)"></span>
                 <div class="meta">
                     <div class="title">${esc(t.name)}</div>
-                    <div class="artist">${esc(t.artist)}</div>
+                    <div class="artist">${esc(t.artist)} &middot; ${esc(t.genre || 'Unknown Genre')}</div>
                 </div>
                 <span class="bpm">${t.bpm} bpm</span>
                 <button class="remove-btn" data-id="${t.id}" title="Remove">&times;</button>
