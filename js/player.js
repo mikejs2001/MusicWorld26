@@ -127,8 +127,8 @@ const Player = {
 
         const maxVal = half * 255;
         return {
-            left:  Math.min(1, (sumL / maxVal) * 2.5),
-            right: Math.min(1, (sumR / maxVal) * 2.5)
+            left:  Math.min(1, (sumL / maxVal) * 1.3),
+            right: Math.min(1, (sumR / maxVal) * 1.3)
         };
     },
 

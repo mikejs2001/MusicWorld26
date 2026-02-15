@@ -69,16 +69,16 @@ const VUMeters = {
         ctx.fillRect(0, 0, w, h);
         this._roundRect(ctx, m, m, w - 2 * m, h - 2 * m, 6 * dpr, '#f5f0e0');
 
-        /* Arc parameters */
+        /* Arc parameters — sweep from upper-left to upper-right above pivot */
         const cx = w / 2;
         const cy = h - 16 * dpr;
         const r  = Math.min(w, h) * 0.5;
-        const aStart = Math.PI * 0.82;
-        const aEnd   = Math.PI * 0.18;
+        const aStart = Math.PI * 1.18;          // upper-left
+        const aEnd   = Math.PI * 1.82;          // upper-right
 
         /* Scale arc */
         ctx.beginPath();
-        ctx.arc(cx, cy, r, aStart, aEnd, true);
+        ctx.arc(cx, cy, r, aStart, aEnd);
         ctx.strokeStyle = '#555';
         ctx.lineWidth = dpr;
         ctx.stroke();
@@ -87,9 +87,9 @@ const VUMeters = {
         const ticks = [-20, -10, -7, -5, -3, -1, 0, 1, 2, 3];
         ticks.forEach((db, j) => {
             const frac = j / (ticks.length - 1);
-            const a = aStart - (aStart - aEnd) * frac;
+            const a = aStart + (aEnd - aStart) * frac;
             const inner = r - 7 * dpr, outer = r + 2 * dpr;
-            const red = j >= 7;
+            const red = db >= 1;
 
             ctx.beginPath();
             ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
@@ -110,14 +110,14 @@ const VUMeters = {
 
         /* Red zone arc */
         ctx.beginPath();
-        ctx.arc(cx, cy, r - 3 * dpr, aStart - (aStart - aEnd) * 0.7, aEnd, true);
+        ctx.arc(cx, cy, r - 3 * dpr, aStart + (aEnd - aStart) * 0.7, aEnd);
         ctx.strokeStyle = '#c00';
         ctx.lineWidth = 2.5 * dpr;
         ctx.stroke();
 
         /* Needle */
         const clamped = Math.min(1, Math.max(0, level));
-        const nAngle  = aStart - (aStart - aEnd) * clamped;
+        const nAngle  = aStart + (aEnd - aStart) * clamped;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + Math.cos(nAngle) * (r - 4 * dpr), cy + Math.sin(nAngle) * (r - 4 * dpr));
@@ -146,18 +146,56 @@ const VUMeters = {
         this._strokeRoundRect(ctx, m, m, w - 2 * m, h - 2 * m, 6 * dpr);
     },
 
-    /* ================ LCD ================ */
+    /* ================ LCD (monochrome old-LCD style) ================ */
     _drawLCD(ctx, w, h, level, peak, label) {
         const dpr = window.devicePixelRatio;
-        ctx.fillStyle = '#0a0a0a';
+
+        /* Dark bezel */
+        ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, w, h);
 
-        const pad   = 10 * dpr;
+        /* LCD panel background — warm olive-green like a classic LCD */
+        const bz = 6 * dpr;
+        this._roundRect(ctx, bz, bz, w - 2 * bz, h - 2 * bz, 3 * dpr, '#8B9A6B');
+
+        /* Inner bevel shadow for depth */
+        ctx.strokeStyle = 'rgba(0,0,0,.25)';
+        ctx.lineWidth = dpr;
+        this._strokeRoundRect(ctx, bz + dpr, bz + dpr, w - 2 * bz - 2 * dpr, h - 2 * bz - 2 * dpr, 2 * dpr);
+
+        const pad   = bz + 8 * dpr;
         const cols  = 30;
-        const gap   = 2 * dpr;
+        const gap   = 1.5 * dpr;
+        const scaleH = 12 * dpr;
+        const labelH = 14 * dpr;
         const barW  = (w - 2 * pad - (cols - 1) * gap) / cols;
-        const barH  = h - 2 * pad - 16 * dpr;
-        const baseY = pad;
+        const barH  = h - 2 * pad - scaleH - labelH;
+        const baseY = pad + scaleH;
+
+        /* dB scale markings */
+        const ink = '#3D4A2A';
+        ctx.fillStyle = ink;
+        ctx.font = `${7 * dpr}px sans-serif`;
+        ctx.textAlign = 'center';
+        const dbMarks = [
+            { db: -20, frac: 0 },
+            { db: -10, frac: 0.33 },
+            { db: -5,  frac: 0.5 },
+            { db: -3,  frac: 0.6 },
+            { db:  0,  frac: 0.78 },
+            { db:  3,  frac: 1 }
+        ];
+        dbMarks.forEach(({ db, frac }) => {
+            const col = Math.round(frac * (cols - 1));
+            const x = pad + col * (barW + gap) + barW / 2;
+            ctx.fillText(String(db), x, pad + scaleH - 3 * dpr);
+            /* Small tick below the number */
+            ctx.fillRect(x - 0.5 * dpr, pad + scaleH - 1.5 * dpr, dpr, 2 * dpr);
+        });
+
+        /* Bars — monochrome: ghost segments vs dark active segments */
+        const ghostColor  = '#7D8B5F';
+        const activeColor = '#2A331A';
 
         for (let i = 0; i < cols; i++) {
             const frac = (i + 1) / cols;
@@ -165,22 +203,18 @@ const VUMeters = {
             const active = level >= frac;
             const isPeak = peak > 0 && Math.abs(frac - peak) < 1 / cols;
 
-            let color;
-            if (frac < 0.6)       color = active ? '#00c853' : '#0a1a0a';
-            else if (frac < 0.8)  color = active ? '#ffd600' : '#1a1a0a';
-            else                  color = active ? '#ff1744' : '#1a0a0a';
-
-            if (isPeak && !active) color = frac < 0.6 ? '#00c853' : frac < 0.8 ? '#ffd600' : '#ff1744';
-
-            ctx.fillStyle = color;
+            ctx.fillStyle = (active || isPeak) ? activeColor : ghostColor;
             ctx.fillRect(x, baseY, barW, barH);
         }
 
-        /* Label */
-        ctx.fillStyle = '#555';
-        ctx.font = `bold ${10 * dpr}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(label, w / 2, h - 3 * dpr);
+        /* Channel label & "dB" text */
+        ctx.fillStyle = ink;
+        ctx.font = `bold ${9 * dpr}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(label, pad, h - bz - 3 * dpr);
+        ctx.textAlign = 'right';
+        ctx.font = `${8 * dpr}px sans-serif`;
+        ctx.fillText('dB', w - pad, h - bz - 3 * dpr);
     },
 
     /* ================ LED ================ */
@@ -189,15 +223,36 @@ const VUMeters = {
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, w, h);
 
-        const pad  = 10 * dpr;
-        const rows = 20;
-        const gap  = 3 * dpr;
-        const ledH = (h - 2 * pad - 16 * dpr - (rows - 1) * gap) / rows;
-        const ledW = w - 2 * pad;
+        const pad    = 10 * dpr;
+        const scaleW = 22 * dpr;              // space for dB labels on right
+        const rows   = 20;
+        const gap    = 3 * dpr;
+        const labelH = 16 * dpr;
+        const ledH   = (h - 2 * pad - labelH - (rows - 1) * gap) / rows;
+        const ledW   = w - 2 * pad - scaleW;
 
+        /* dB scale markings on the right */
+        const dbMarks = [
+            { db:  '+3', frac: 1 },
+            { db:   '0', frac: 0.78 },
+            { db:  '-3', frac: 0.6 },
+            { db:  '-5', frac: 0.5 },
+            { db: '-10', frac: 0.33 },
+            { db: '-20', frac: 0.05 }
+        ];
+        ctx.fillStyle = '#555';
+        ctx.font = `${7 * dpr}px sans-serif`;
+        ctx.textAlign = 'left';
+        dbMarks.forEach(({ db, frac }) => {
+            const row = Math.round(frac * (rows - 1));
+            const y = h - pad - labelH - (row + 1) * (ledH + gap) + gap + ledH / 2 + 3 * dpr;
+            ctx.fillText(db, pad + ledW + 4 * dpr, y);
+        });
+
+        /* LED segments */
         for (let i = 0; i < rows; i++) {
             const frac  = (i + 1) / rows;
-            const y     = h - pad - 16 * dpr - (i + 1) * (ledH + gap) + gap;
+            const y     = h - pad - labelH - (i + 1) * (ledH + gap) + gap;
             const active = level >= frac;
             const isPeak = peak > 0 && Math.abs(frac - peak) < 1 / rows;
 
@@ -217,7 +272,7 @@ const VUMeters = {
         ctx.fillStyle = '#555';
         ctx.font = `bold ${10 * dpr}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText(label, w / 2, h - 3 * dpr);
+        ctx.fillText(label, (pad + ledW / 2), h - 3 * dpr);
     },
 
     /* helpers */
