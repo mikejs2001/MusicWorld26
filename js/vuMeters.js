@@ -20,7 +20,7 @@ const VUMeters = {
         [this.leftCanvas, this.rightCanvas].forEach(c => {
             const parent = c.parentElement;
             const w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
-            const h = this.style === 'needle' ? Math.floor(w * 0.65) : Math.floor(w * 0.8);
+            const h = this.style === 'needle' ? Math.floor(w * 0.75) : Math.floor(w * 0.8);
             const dpr = window.devicePixelRatio;
             c.width  = w * dpr;
             c.height = h * dpr;
@@ -69,16 +69,38 @@ const VUMeters = {
         ctx.fillRect(0, 0, w, h);
         this._roundRect(ctx, m, m, w - 2 * m, h - 2 * m, 6 * dpr, '#f5f0e0');
 
-        /* Arc parameters — sweep from upper-left to upper-right above pivot */
+        /* Pivot at bottom-centre of face */
         const cx = w / 2;
-        const cy = h - 16 * dpr;
-        const r  = Math.min(w, h) * 0.5;
-        const aStart = Math.PI * 1.18;          // upper-left
-        const aEnd   = Math.PI * 1.82;          // upper-right
+        const cy = h - m - 10 * dpr;
 
-        /* Scale arc */
+        /* Radius — fill as much of the face as possible, leaving room for labels */
+        const r = Math.min(
+            (w - 2 * m) / 2 - 6 * dpr,
+            cy - m - 30 * dpr
+        );
+
+        /*
+         * All positions use "degrees from straight up":
+         *   -60 = far left,  0 = straight up,  +60 = far right
+         *
+         * Convert to canvas x,y:
+         *   x = cx + sin(deg) * radius   (sin gives horizontal offset)
+         *   y = cy - cos(deg) * radius   (cos gives upward offset)
+         */
+        const toRad = Math.PI / 180;
+        const tipXY = (deg, rad) => [
+            cx + Math.sin(deg * toRad) * rad,
+            cy - Math.cos(deg * toRad) * rad
+        ];
+
+        const sweep = 55;                               // half-sweep in degrees
+
+        /* Scale arc — drawn as a polyline for clarity */
         ctx.beginPath();
-        ctx.arc(cx, cy, r, aStart, aEnd);
+        for (let d = -sweep; d <= sweep; d += 1) {
+            const [x, y] = tipXY(d, r);
+            if (d === -sweep) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
         ctx.strokeStyle = '#555';
         ctx.lineWidth = dpr;
         ctx.stroke();
@@ -87,58 +109,66 @@ const VUMeters = {
         const ticks = [-20, -10, -7, -5, -3, -1, 0, 1, 2, 3];
         ticks.forEach((db, j) => {
             const frac = j / (ticks.length - 1);
-            const a = aStart + (aEnd - aStart) * frac;
-            const inner = r - 7 * dpr, outer = r + 2 * dpr;
-            const red = db >= 1;
+            const deg  = -sweep + 2 * sweep * frac;
+            const red  = db >= 1;
+
+            const [ix, iy] = tipXY(deg, r - 7 * dpr);
+            const [ox, oy] = tipXY(deg, r + 2 * dpr);
 
             ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
-            ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
+            ctx.moveTo(ix, iy);
+            ctx.lineTo(ox, oy);
             ctx.strokeStyle = red ? '#c00' : '#444';
             ctx.lineWidth = (j % 2 === 0 ? 2 : 1) * dpr;
             ctx.stroke();
 
             if (j % 2 === 0) {
+                const [lx, ly] = tipXY(deg, r + 13 * dpr);
                 ctx.fillStyle = red ? '#c00' : '#444';
                 ctx.font = `${9 * dpr}px sans-serif`;
                 ctx.textAlign = 'center';
-                ctx.fillText(String(db),
-                    cx + Math.cos(a) * (r + 12 * dpr),
-                    cy + Math.sin(a) * (r + 12 * dpr) + 3 * dpr);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(db), lx, ly);
             }
         });
 
-        /* Red zone arc */
+        /* Red zone arc (last 30 %) */
         ctx.beginPath();
-        ctx.arc(cx, cy, r - 3 * dpr, aStart + (aEnd - aStart) * 0.7, aEnd);
+        const redStart = -sweep + 2 * sweep * 0.7;
+        for (let d = redStart; d <= sweep; d += 1) {
+            const [x, y] = tipXY(d, r - 3 * dpr);
+            if (d <= redStart + 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
         ctx.strokeStyle = '#c00';
         ctx.lineWidth = 2.5 * dpr;
         ctx.stroke();
 
         /* Needle */
-        const clamped = Math.min(1, Math.max(0, level));
-        const nAngle  = aStart + (aEnd - aStart) * clamped;
+        const clamped  = Math.min(1, Math.max(0, level));
+        const needleDeg = -sweep + 2 * sweep * clamped;
+        const [nx, ny] = tipXY(needleDeg, r - 4 * dpr);
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(nAngle) * (r - 4 * dpr), cy + Math.sin(nAngle) * (r - 4 * dpr));
+        ctx.lineTo(nx, ny);
         ctx.strokeStyle = '#111';
         ctx.lineWidth = 2 * dpr;
         ctx.stroke();
 
-        /* Pivot */
+        /* Pivot dot */
         ctx.beginPath();
         ctx.arc(cx, cy, 3.5 * dpr, 0, Math.PI * 2);
         ctx.fillStyle = '#333';
         ctx.fill();
 
-        /* Labels */
+        /* Text labels */
+        ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#666';
         ctx.font = `bold ${10 * dpr}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText(label, cx, h - 3 * dpr);
+        ctx.fillText(label, cx, h - 2 * dpr);
         ctx.fillStyle = '#444';
         ctx.font = `bold ${9 * dpr}px sans-serif`;
-        ctx.fillText('VU', cx, m + 13 * dpr);
+        ctx.fillText('VU', cx, m + 14 * dpr);
 
         /* Border */
         ctx.strokeStyle = '#444';
