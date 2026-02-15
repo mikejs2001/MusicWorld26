@@ -27,7 +27,42 @@ const MoodGrid = {
 
     setTracks(tracks) {
         this.tracks = tracks;
+        this._computeRange();
         this.draw();
+    },
+
+    /* Compute min/max of raw moodX/moodY so dots auto-scale to fill the grid */
+    _computeRange() {
+        const pad = 0.06;                              // 6% padding each edge
+        if (this.tracks.length === 0) {
+            this.rangeX = null;
+            this.rangeY = null;
+            return;
+        }
+        let xMin = Infinity, xMax = -Infinity;
+        let yMin = Infinity, yMax = -Infinity;
+        this.tracks.forEach(t => {
+            if (t.moodX < xMin) xMin = t.moodX;
+            if (t.moodX > xMax) xMax = t.moodX;
+            if (t.moodY < yMin) yMin = t.moodY;
+            if (t.moodY > yMax) yMax = t.moodY;
+        });
+        const xSpan = xMax - xMin || 1;               // avoid /0
+        const ySpan = yMax - yMin || 1;
+        this.rangeX = { min: xMin, span: xSpan, pad };
+        this.rangeY = { min: yMin, span: ySpan, pad };
+    },
+
+    /* Map a raw track value to 0‒1 grid coordinate with padding */
+    _normX(raw) {
+        if (!this.rangeX) return 0.5;
+        const pad = this.rangeX.pad;
+        return pad + ((raw - this.rangeX.min) / this.rangeX.span) * (1 - 2 * pad);
+    },
+    _normY(raw) {
+        if (!this.rangeY) return 0.5;
+        const pad = this.rangeY.pad;
+        return pad + ((raw - this.rangeY.min) / this.rangeY.span) * (1 - 2 * pad);
     },
 
     /* ---------- drawing ---------- */
@@ -92,22 +127,24 @@ const MoodGrid = {
             c.setLineDash([]);
         }
 
-        /* Track dots */
+        /* Track dots — positions are auto-scaled to fill the grid */
         this.tracks.forEach(t => {
-            const tx = t.moodX * w;
-            const ty = (1 - t.moodY) * h;        // flip Y so fast = top
+            const nx = this._normX(t.moodX);
+            const ny = this._normY(t.moodY);
+            const tx = nx * w;
+            const ty = (1 - ny) * h;             // flip Y so fast = top
             const r  = 4 * dpr;
 
-            /* Colour by mood position — green/blue ↔ orange/red */
-            const hue = 120 + (1 - t.moodX) * 120;       // 120 (green) → 240 (blue) for sad
-            const satPct = 70 + t.moodY * 30;
-            c.fillStyle = `hsl(${hue * t.moodX + 30 * (1 - t.moodX)}, ${satPct}%, 55%)`;
+            /* Colour by grid position — green/blue ↔ orange/red */
+            const hue = 120 + (1 - nx) * 120;
+            const satPct = 70 + ny * 30;
+            c.fillStyle = `hsl(${hue * nx + 30 * (1 - nx)}, ${satPct}%, 55%)`;
 
             /* Highlight if inside selection radius */
             let highlighted = false;
             if (this.selection) {
-                const dx = t.moodX - this.selection.x;
-                const dy = t.moodY - this.selection.y;
+                const dx = nx - this.selection.x;
+                const dy = ny - this.selection.y;
                 if (Math.sqrt(dx * dx + dy * dy) <= this.selectionRadius) highlighted = true;
             }
 
@@ -172,7 +209,7 @@ const MoodGrid = {
         window.addEventListener('resize', () => this.resize());
     },
 
-    /* Return track IDs sorted by distance to selection */
+    /* Return track IDs sorted by distance to selection (in normalised space) */
     getTracksNearSelection(count) {
         if (!this.selection) return [];
         const sx = this.selection.x;
@@ -180,8 +217,8 @@ const MoodGrid = {
 
         const sorted = this.tracks
             .map(t => {
-                const dx = t.moodX - sx;
-                const dy = t.moodY - sy;
+                const dx = this._normX(t.moodX) - sx;
+                const dy = this._normY(t.moodY) - sy;
                 return { id: t.id, dist: Math.sqrt(dx * dx + dy * dy), track: t };
             })
             .sort((a, b) => a.dist - b.dist);
