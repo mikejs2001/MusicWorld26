@@ -134,13 +134,25 @@ const MoodGrid = {
     /* ---------- interaction ---------- */
 
     _bindEvents() {
-        this.canvas.addEventListener('click', (e) => {
+        const selectAt = (clientX, clientY) => {
             const rect = this.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / rect.width;
-            const y = 1 - (e.clientY - rect.top) / rect.height;    // flip Y
+            const x = (clientX - rect.left) / rect.width;
+            const y = 1 - (clientY - rect.top) / rect.height;   // flip Y
             this.selection = { x, y };
             this.draw();
             if (this.onSelect) this.onSelect(x, y);
+        };
+
+        this.canvas.addEventListener('click', (e) => {
+            selectAt(e.clientX, e.clientY);
+        });
+
+        /* Touch support for mobile */
+        this.canvas.addEventListener('touchend', (e) => {
+            if (e.changedTouches.length === 0) return;
+            const t = e.changedTouches[0];
+            e.preventDefault();          // prevent delayed click / scroll
+            selectAt(t.clientX, t.clientY);
         });
 
         this.canvas.addEventListener('mousemove', (e) => {

@@ -195,20 +195,20 @@
         playerEl.classList.add('hidden');
         miniEl.classList.add('hidden');
 
-        /* Immediately clear the visible track list for instant feedback */
+        /* Clear all visuals immediately for instant feedback */
         $('#track-list').innerHTML = '';
         $('#track-count').textContent = '(0 tracks)';
-
-        /* Delete and re-create the database */
-        await Library.clearAll();
-
-        /* Reset the mood grid (clear dots + selection) */
         MoodGrid.clearSelection();
         MoodGrid.setTracks([]);
-
-        /* Reset play button */
         $('#btn-play-selection').disabled = true;
         $('#btn-play-selection').textContent = 'Select a mood on the grid';
+
+        /* Delete and re-create the database */
+        try {
+            await Library.clearAll();
+        } catch (err) {
+            console.warn('clearAll error (library visuals already cleared):', err);
+        }
 
         /* Re-render to confirm everything is empty */
         await renderTrackList();
