@@ -135,11 +135,14 @@ const Analyzer = {
         const engN = Math.min(1, (totalEnergy / numSegs) * 3);
         const hfN  = Math.min(1, totalHF / numSegs);
 
-        return Math.min(1, Math.max(0, zcrN * 0.4 + engN * 0.3 + hfN * 0.3));
+        const raw = zcrN * 0.4 + engN * 0.3 + hfN * 0.3;
+        /* Spread the typical 0.2–0.7 cluster across the full 0–1 range */
+        return Math.min(1, Math.max(0, (raw - 0.2) / 0.6));
     },
 
     normalizeBPM(bpm) {
-        return Math.min(1, Math.max(0, (bpm - 60) / 140));
+        /* Tighter range so typical 70–170 BPM spreads across full 0–1 */
+        return Math.min(1, Math.max(0, (bpm - 70) / 100));
     },
 
     /* ============================================================
