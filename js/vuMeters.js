@@ -95,53 +95,56 @@ const VUMeters = {
 
         const sweep = 55;                               // half-sweep in degrees
 
-        /* Scale arc — drawn as a polyline for clarity */
+        /* Scale arc */
         ctx.beginPath();
         for (let d = -sweep; d <= sweep; d += 1) {
             const [x, y] = tipXY(d, r);
             if (d === -sweep) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = dpr;
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5 * dpr;
         ctx.stroke();
 
-        /* Tick marks & dB labels */
+        /* Red zone arc (last 30 %) — drawn BELOW the scale arc, toward pivot */
+        ctx.beginPath();
+        const redStart = -sweep + 2 * sweep * 0.7;
+        for (let d = redStart; d <= sweep; d += 1) {
+            const [x, y] = tipXY(d, r - 4 * dpr);
+            if (d <= redStart + 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#c00';
+        ctx.lineWidth = 3 * dpr;
+        ctx.stroke();
+
+        /* Tick marks & dB labels — drawn OUTSIDE (above) the arc */
         const ticks = [-20, -10, -7, -5, -3, -1, 0, 1, 2, 3];
         ticks.forEach((db, j) => {
             const frac = j / (ticks.length - 1);
             const deg  = -sweep + 2 * sweep * frac;
             const red  = db >= 1;
+            const major = (j % 2 === 0);
 
-            const [ix, iy] = tipXY(deg, r - 7 * dpr);
-            const [ox, oy] = tipXY(deg, r + 2 * dpr);
+            /* Ticks extend outward (away from pivot) from the arc line */
+            const [ix, iy] = tipXY(deg, r);
+            const [ox, oy] = tipXY(deg, r + (major ? 10 : 6) * dpr);
 
             ctx.beginPath();
             ctx.moveTo(ix, iy);
             ctx.lineTo(ox, oy);
-            ctx.strokeStyle = red ? '#c00' : '#444';
-            ctx.lineWidth = (j % 2 === 0 ? 2 : 1) * dpr;
+            ctx.strokeStyle = red ? '#c00' : '#222';
+            ctx.lineWidth = (major ? 2.5 : 1.5) * dpr;
             ctx.stroke();
 
-            if (j % 2 === 0) {
-                const [lx, ly] = tipXY(deg, r + 13 * dpr);
-                ctx.fillStyle = red ? '#c00' : '#444';
-                ctx.font = `${9 * dpr}px sans-serif`;
+            /* dB number above each major tick */
+            if (major) {
+                const [lx, ly] = tipXY(deg, r + 18 * dpr);
+                ctx.fillStyle = red ? '#c00' : '#222';
+                ctx.font = `bold ${10 * dpr}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(String(db), lx, ly);
             }
         });
-
-        /* Red zone arc (last 30 %) */
-        ctx.beginPath();
-        const redStart = -sweep + 2 * sweep * 0.7;
-        for (let d = redStart; d <= sweep; d += 1) {
-            const [x, y] = tipXY(d, r - 3 * dpr);
-            if (d <= redStart + 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = '#c00';
-        ctx.lineWidth = 2.5 * dpr;
-        ctx.stroke();
 
         /* Needle */
         const clamped  = Math.min(1, Math.max(0, level));
