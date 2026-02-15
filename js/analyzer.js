@@ -53,9 +53,9 @@ const Analyzer = {
         const data = buf.getChannelData(0);
         const sr   = buf.sampleRate;
 
-        /* Take a 12-second slice from the middle */
-        const start = Math.floor(Math.max(0, buf.duration / 2 - 6) * sr);
-        const end   = Math.min(data.length, start + 12 * sr);
+        /* Take a 16-second slice from the middle for better accuracy */
+        const start = Math.floor(Math.max(0, buf.duration / 2 - 8) * sr);
+        const end   = Math.min(data.length, start + 16 * sr);
         const seg   = data.subarray(start, end);
 
         /* Low-pass via simple moving average (≈200 Hz cutoff) */
@@ -86,20 +86,43 @@ const Analyzer = {
 
         if (peaks.length < 4) return 120;           // fallback
 
-        /* Histogram of inter-onset intervals */
-        const hist = {};
+        /* Collect all inter-onset intervals */
+        const intervals = [];
         for (let i = 1; i < peaks.length; i++) {
-            const gap = Math.round((peaks[i] - peaks[i - 1]) / 2) * 2; // quantise
-            hist[gap] = (hist[gap] || 0) + 1;
+            intervals.push(peaks[i] - peaks[i - 1]);
         }
 
-        let bestGap = 0, bestCnt = 0;
+        /* Autocorrelation on intervals to find the dominant beat period.
+           Check both the raw interval and half/double groupings. */
+        const hist = {};
+        for (const iv of intervals) {
+            const q = Math.round(iv / 2) * 2; // quantise
+            hist[q] = (hist[q] || 0) + 1;
+            /* Also count double-intervals (half BPM candidate) */
+            const dbl = Math.round(iv * 2 / 2) * 2;
+            hist[dbl] = (hist[dbl] || 0) + 0.6;
+        }
+
+        /* Also check pairs of consecutive intervals (catches half-time) */
+        for (let i = 0; i < intervals.length - 1; i++) {
+            const pair = intervals[i] + intervals[i + 1];
+            const q = Math.round(pair / 2) * 2;
+            hist[q] = (hist[q] || 0) + 0.8;
+        }
+
+        /* Find the best candidate, preferring the 70-150 BPM range */
+        let bestGap = 0, bestScore = 0;
         for (const [g, c] of Object.entries(hist)) {
-            if (c > bestCnt) { bestCnt = c; bestGap = Number(g); }
+            const gap = Number(g);
+            const bpmCandidate = 60 / (gap * winMs / 1000);
+            /* Bonus for the sweet-spot range (70-150 BPM) */
+            const rangeBonus = (bpmCandidate >= 70 && bpmCandidate <= 150) ? 1.5 : 1.0;
+            const score = c * rangeBonus;
+            if (score > bestScore) { bestScore = score; bestGap = gap; }
         }
 
         let bpm = 60 / (bestGap * winMs / 1000);
-        while (bpm > 200) bpm /= 2;
+        while (bpm > 180) bpm /= 2;
         while (bpm < 60)  bpm *= 2;
         return Math.round(bpm);
     },
