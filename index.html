@@ -142,11 +142,19 @@
 
 <!-- Upload -->
 <section class="upload-section">
-    <div class="upload-area" id="upload-area">
-        <div class="upload-icon">&#127925;</div>
-        <p>Tap here to add music files</p>
+    <div class="upload-area" id="upload-area-folder">
+        <div class="upload-icon">&#128193;</div>
+        <p>Tap here to select a music folder</p>
+        <p style="font-size:0.75rem; color:#666; margin-top:4px">Loads all audio files from the folder</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; justify-content:center; margin:10px 0;">
+        <span style="color:#555; font-size:0.8rem;">or</span>
+    </div>
+    <div class="upload-area" id="upload-area" style="padding:16px; border-style:dotted;">
+        <p style="font-size:0.9rem;">Add individual files</p>
         <p style="font-size:0.75rem; color:#666; margin-top:4px">MP3, WAV, OGG, FLAC, M4A</p>
     </div>
+    <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
     <input type="file" id="file-input" accept=".mp3,.wav,.ogg,.flac,.m4a,audio/*" multiple hidden>
     <div id="upload-status"></div>
 </section>
@@ -630,7 +638,34 @@ function formatTime(s) {
 }
 
 // ========== FILE UPLOAD & ANALYSIS ==========
+const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.wma', '.opus', '.webm'];
+const folderInput = document.getElementById("folder-input");
+const uploadAreaFolder = document.getElementById("upload-area-folder");
+
+function isAudioFile(file) {
+    if (file.type && file.type.startsWith("audio/")) return true;
+    const name = file.name.toLowerCase();
+    return AUDIO_EXTENSIONS.some(ext => name.endsWith(ext));
+}
+
+function filterAudioFiles(files) {
+    return Array.from(files).filter(isAudioFile);
+}
+
+uploadAreaFolder.addEventListener("click", () => folderInput.click());
 uploadArea.addEventListener("click", () => fileInput.click());
+
+uploadAreaFolder.addEventListener("dragover", (e) => { e.preventDefault(); uploadAreaFolder.classList.add("drag-over"); });
+uploadAreaFolder.addEventListener("dragleave", () => uploadAreaFolder.classList.remove("drag-over"));
+uploadAreaFolder.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadAreaFolder.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) {
+        const audioFiles = filterAudioFiles(e.dataTransfer.files);
+        if (audioFiles.length) handleFiles(audioFiles);
+        else uploadStatus.textContent = "No audio files found in the dropped items.";
+    }
+});
 
 uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("drag-over"); });
 uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("drag-over"));
@@ -639,15 +674,30 @@ uploadArea.addEventListener("drop", (e) => {
     uploadArea.classList.remove("drag-over");
     if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
+
+folderInput.addEventListener("change", () => {
+    if (folderInput.files.length) {
+        const audioFiles = filterAudioFiles(folderInput.files);
+        if (audioFiles.length) {
+            uploadStatus.textContent = `Found ${audioFiles.length} audio file${audioFiles.length !== 1 ? "s" : ""} in folder (${folderInput.files.length} total files scanned)`;
+            handleFiles(audioFiles);
+        } else {
+            uploadStatus.textContent = `No audio files found in folder (${folderInput.files.length} files scanned).`;
+        }
+    }
+});
+
 fileInput.addEventListener("change", () => {
     if (fileInput.files.length) handleFiles(fileInput.files);
 });
 
 async function handleFiles(files) {
-    const total = files.length;
+    const fileArray = Array.isArray(files) ? files : Array.from(files);
+    const total = fileArray.length;
     let done = 0;
+    let failed = 0;
 
-    for (const file of files) {
+    for (const file of fileArray) {
         done++;
         uploadStatus.innerHTML = `<span class="spinner"></span>Analyzing ${done}/${total}: ${file.name}...`;
 
@@ -674,13 +724,17 @@ async function handleFiles(files) {
             await dbAdd(track);
         } catch (err) {
             console.error("Failed to process " + file.name, err);
+            failed++;
             uploadStatus.innerHTML = `Failed: ${file.name} - ${err.message}`;
             await new Promise(r => setTimeout(r, 1500));
         }
     }
 
-    uploadStatus.textContent = `${total} track${total > 1 ? "s" : ""} added to library!`;
+    const added = total - failed;
+    uploadStatus.textContent = `${added} track${added !== 1 ? "s" : ""} added to library!` +
+        (failed > 0 ? ` (${failed} failed)` : "");
     fileInput.value = "";
+    folderInput.value = "";
     updateLibraryCount();
 
     // Refresh playlist if a mood is selected
