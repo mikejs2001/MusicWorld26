@@ -32,6 +32,7 @@ const Analyzer = {
             name:       tags.title  || nameParts.title,
             artist:     tags.artist || nameParts.artist,
             album:      tags.album  || nameParts.album,
+            genre:      tags.genre  || 'Unknown Genre',
             bpm,
             mood,
             moodX:      mood,                          // 0 = sad … 1 = happy
@@ -172,7 +173,7 @@ const Analyzer = {
        Minimal ID3v2 tag parser  (title, artist, album, artwork)
        ============================================================ */
     parseID3(buffer) {
-        const result = { title: null, artist: null, album: null, artworkBlob: null };
+        const result = { title: null, artist: null, album: null, genre: null, artworkBlob: null };
 
         try {
             const dv  = new DataView(buffer);
@@ -195,6 +196,7 @@ const Analyzer = {
                 if (fid === 'TIT2') result.title  = this._readText(dv, frameStart, fsz);
                 if (fid === 'TPE1') result.artist = this._readText(dv, frameStart, fsz);
                 if (fid === 'TALB') result.album  = this._readText(dv, frameStart, fsz);
+                if (fid === 'TCON') result.genre  = this._readText(dv, frameStart, fsz);
                 if (fid === 'APIC') result.artworkBlob = this._readAPIC(buffer, frameStart, fsz);
 
                 pos += 10 + fsz;

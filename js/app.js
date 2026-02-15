@@ -58,6 +58,7 @@
             $$('.view').forEach(v => v.classList.remove('active'));
             $(`#view-${btn.dataset.view}`).classList.add('active');
             if (btn.dataset.view === 'mood-grid') MoodGrid.resize();
+            if (btn.dataset.view === 'browse') renderBrowse();
             if (btn.dataset.view === 'add-tracks') renderTrackList();
             /* Close the dropdown after selection */
             menuDropdown.classList.add('hidden');
@@ -165,6 +166,130 @@
                 await refreshGrid();
                 renderTrackList();
             });
+        });
+    }
+
+    /* ============================================================
+       Browse view — Artists / Albums / Genres
+       ============================================================ */
+    let browseTab = 'artists';
+    let browseAllTracks = [];
+
+    $$('.browse-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            $$('.browse-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            browseTab = tab.dataset.tab;
+            showBrowseList();
+        });
+    });
+
+    $('#browse-back').addEventListener('click', () => {
+        $('#browse-detail').classList.add('hidden');
+        $('#browse-content').style.display = '';
+        $('#browse-tabs').style.display = '';
+    });
+
+    $('#browse-play-all').addEventListener('click', async () => {
+        const ids = Array.from($('#browse-detail-tracks').querySelectorAll('.track-item'))
+            .map(el => Number(el.dataset.id))
+            .filter(id => id);
+        if (ids.length === 0) return;
+        Player.setPlaylist(ids, false);
+        await Player.start();
+        showPlayer();
+    });
+
+    $('#browse-show-grid').addEventListener('click', () => {
+        const ids = new Set(
+            Array.from($('#browse-detail-tracks').querySelectorAll('.track-item'))
+                .map(el => Number(el.dataset.id))
+        );
+        const filtered = browseAllTracks.filter(t => ids.has(t.id));
+        MoodGrid.setTracks(filtered);
+        /* Switch to mood grid view */
+        $$('.menu-btn').forEach(b => b.classList.remove('active'));
+        $$('.view').forEach(v => v.classList.remove('active'));
+        $('[data-view="mood-grid"]').classList.add('active');
+        $('#view-mood-grid').classList.add('active');
+        MoodGrid.resize();
+    });
+
+    async function renderBrowse() {
+        browseAllTracks = await Library.getAllTracks();
+        showBrowseList();
+        /* Reset to list view */
+        $('#browse-detail').classList.add('hidden');
+        $('#browse-content').style.display = '';
+        $('#browse-tabs').style.display = '';
+    }
+
+    function showBrowseList() {
+        const list = $('#browse-list');
+        list.innerHTML = '';
+
+        if (browseAllTracks.length === 0) {
+            list.innerHTML = '<p style="color:#555;padding:20px;text-align:center">No tracks in library.</p>';
+            return;
+        }
+
+        /* Group tracks by the selected tab */
+        const groups = {};
+        browseAllTracks.forEach(t => {
+            let key;
+            if (browseTab === 'artists')  key = t.artist || 'Unknown Artist';
+            else if (browseTab === 'albums') key = t.album || 'Unknown Album';
+            else key = t.genre || 'Unknown Genre';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(t);
+        });
+
+        /* Sort by name */
+        const sorted = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+
+        const icons = { artists: '&#9834;', albums: '&#128191;', genres: '&#9836;' };
+
+        sorted.forEach(([name, tracks]) => {
+            const card = document.createElement('div');
+            card.className = 'browse-card';
+            card.innerHTML = `
+                <div class="browse-icon">${icons[browseTab]}</div>
+                <div class="browse-info">
+                    <div class="browse-name">${esc(name)}</div>
+                    <div class="browse-count">${tracks.length} track${tracks.length !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+            card.addEventListener('click', () => showBrowseDetail(name, tracks));
+            list.appendChild(card);
+        });
+    }
+
+    function showBrowseDetail(name, tracks) {
+        $('#browse-content').style.display = 'none';
+        $('#browse-tabs').style.display = 'none';
+        $('#browse-detail').classList.remove('hidden');
+        $('#browse-detail-title').textContent = name;
+
+        const list = $('#browse-detail-tracks');
+        list.innerHTML = '';
+
+        tracks.forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'track-item';
+            el.dataset.id = t.id;
+            el.innerHTML = `
+                <div class="meta">
+                    <div class="title">${esc(t.name)}</div>
+                    <div class="artist">${esc(t.artist)} &middot; ${esc(t.album || 'Unknown Album')}</div>
+                </div>
+                <span class="bpm">${t.bpm} bpm</span>
+            `;
+            el.addEventListener('click', async () => {
+                Player.setPlaylist([t.id], false);
+                await Player.start();
+                showPlayer();
+            });
+            list.appendChild(el);
         });
     }
 

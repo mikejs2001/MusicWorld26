@@ -18,6 +18,7 @@
             </button>
             <div id="menu-dropdown" class="dropdown hidden">
                 <button class="menu-btn active" data-view="mood-grid">Mood Grid</button>
+                <button class="menu-btn" data-view="browse">Browse</button>
                 <button class="menu-btn" data-view="add-tracks">Add Tracks</button>
                 <button class="menu-btn" data-view="settings">Settings</button>
             </div>
@@ -50,6 +51,27 @@
                     <option value="0">Continuous</option>
                 </select>
                 <button id="btn-play-selection" disabled>Select a mood on the grid</button>
+            </div>
+        </section>
+
+        <!-- ========== BROWSE VIEW ========== -->
+        <section id="view-browse" class="view">
+            <div id="browse-tabs">
+                <button class="browse-tab active" data-tab="artists">Artists</button>
+                <button class="browse-tab" data-tab="albums">Albums</button>
+                <button class="browse-tab" data-tab="genres">Genres</button>
+            </div>
+            <div id="browse-content">
+                <div id="browse-list"></div>
+            </div>
+            <div id="browse-detail" class="hidden">
+                <button id="browse-back">&larr; Back</button>
+                <h3 id="browse-detail-title"></h3>
+                <div id="browse-detail-actions">
+                    <button id="browse-play-all" class="action-btn">Play All</button>
+                    <button id="browse-show-grid" class="action-btn secondary">Show on Grid</button>
+                </div>
+                <div id="browse-detail-tracks"></div>
             </div>
         </section>
 
