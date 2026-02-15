@@ -189,8 +189,24 @@
 
     $('#btn-clear-library').addEventListener('click', async () => {
         if (!confirm('Clear your entire music library? This cannot be undone.')) return;
+
+        /* Stop any playing audio and hide player */
+        Player.stop();
+        playerEl.classList.add('hidden');
+        miniEl.classList.add('hidden');
+
+        /* Wipe the database */
         await Library.clearAll();
+
+        /* Reset the mood grid (clear dots + selection) */
+        MoodGrid.clearSelection();
         await refreshGrid();
+
+        /* Reset play button */
+        $('#btn-play-selection').disabled = true;
+        $('#btn-play-selection').textContent = 'Select a mood on the grid';
+
+        /* Refresh track list to show 0 tracks */
         renderTrackList();
     });
 
