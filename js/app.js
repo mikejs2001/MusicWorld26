@@ -353,10 +353,12 @@
     function showPlayer() {
         playerEl.classList.remove('hidden');
         miniEl.classList.add('hidden');
+        $('#main-content').style.paddingBottom = '';
     }
     function minimisePlayer() {
         playerEl.classList.add('hidden');
         miniEl.classList.remove('hidden');
+        $('#main-content').style.paddingBottom = '60px';
     }
 
     $('#btn-minimize').addEventListener('click', minimisePlayer);
@@ -366,7 +368,7 @@
     $('#btn-play-pause').addEventListener('click', () => Player.togglePlayPause());
     $('#btn-next').addEventListener('click', () => Player.next());
     $('#btn-prev').addEventListener('click', () => Player.prev());
-    $('#btn-stop').addEventListener('click', () => { Player.stop(); playerEl.classList.add('hidden'); miniEl.classList.add('hidden'); });
+    $('#btn-stop').addEventListener('click', () => { Player.stop(); playerEl.classList.add('hidden'); miniEl.classList.add('hidden'); $('#main-content').style.paddingBottom = ''; });
 
     /* Transport — mini player */
     $('#mini-play-pause').addEventListener('click', () => Player.togglePlayPause());
