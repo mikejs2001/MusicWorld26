@@ -91,13 +91,18 @@ const Library = {
     },
 
     async clearAll() {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(['tracks', 'audio', 'artwork'], 'readwrite');
-            tx.objectStore('tracks').clear();
-            tx.objectStore('audio').clear();
-            tx.objectStore('artwork').clear();
-            tx.oncomplete = () => resolve();
-            tx.onerror = (e) => reject(e.target.error);
+        /* Close the current connection, delete the entire database,
+           then re-initialise so the app is ready for fresh data. */
+        if (this.db) {
+            this.db.close();
+            this.db = null;
+        }
+        await new Promise((resolve, reject) => {
+            const req = indexedDB.deleteDatabase(this.DB_NAME);
+            req.onsuccess = () => resolve();
+            req.onerror   = (e) => reject(e.target.error);
+            req.onblocked = () => resolve();   // resolve even if blocked
         });
+        await this.init();
     }
 };

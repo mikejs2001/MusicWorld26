@@ -195,19 +195,23 @@
         playerEl.classList.add('hidden');
         miniEl.classList.add('hidden');
 
-        /* Wipe the database */
+        /* Immediately clear the visible track list for instant feedback */
+        $('#track-list').innerHTML = '';
+        $('#track-count').textContent = '(0 tracks)';
+
+        /* Delete and re-create the database */
         await Library.clearAll();
 
         /* Reset the mood grid (clear dots + selection) */
         MoodGrid.clearSelection();
-        await refreshGrid();
+        MoodGrid.setTracks([]);
 
         /* Reset play button */
         $('#btn-play-selection').disabled = true;
         $('#btn-play-selection').textContent = 'Select a mood on the grid';
 
-        /* Refresh track list to show 0 tracks */
-        renderTrackList();
+        /* Re-render to confirm everything is empty */
+        await renderTrackList();
     });
 
     $('#btn-reanalyze').addEventListener('click', async () => {
