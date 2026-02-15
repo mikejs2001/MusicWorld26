@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicWorld26 — Mood Selector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        header { text-align: center; padding: 24px 16px 8px; }
+        header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #e94560, #0f3460);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p { color: #888; margin-top: 4px; font-size: 0.9rem; }
+
+        /* Upload */
+        .upload-section { max-width: 600px; margin: 16px auto; padding: 0 16px; text-align: center; }
+        .upload-area {
+            border: 2px dashed #444; border-radius: 12px; padding: 24px;
+            cursor: pointer; transition: border-color 0.3s, background 0.3s;
+        }
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: #e94560; background: rgba(233,69,96,0.05);
+        }
+        .upload-area p { color: #888; font-size: 0.95rem; }
+        .upload-icon { font-size: 2rem; margin-bottom: 6px; }
+        #upload-status { margin-top: 8px; font-size: 0.85rem; color: #77dd77; min-height: 20px; }
+
+        /* Mood selector */
+        .mood-section { max-width: 800px; margin: 24px auto; padding: 0 16px; }
+        .mood-section h2 { text-align: center; margin-bottom: 16px; font-size: 1.2rem; color: #ccc; }
+        .mood-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+        }
+        .mood-btn {
+            border: 2px solid transparent; border-radius: 14px; padding: 16px 10px;
+            text-align: center; cursor: pointer; transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+            background: #16213e; user-select: none;
+        }
+        .mood-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+        .mood-btn.active { border-color: currentColor; box-shadow: 0 0 16px rgba(255,255,255,0.1); }
+        .mood-icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+        .mood-label { font-size: 1rem; font-weight: 600; display: block; }
+        .mood-desc { font-size: 0.7rem; color: #999; margin-top: 3px; display: block; }
+
+        /* Playlist */
+        .playlist-section { max-width: 800px; margin: 24px auto; padding: 0 16px 120px; }
+        .playlist-section h2 { text-align: center; margin-bottom: 12px; font-size: 1.1rem; color: #ccc; }
+        .track-count { text-align: center; color: #666; font-size: 0.8rem; margin-bottom: 8px; }
+        .playlist-empty { text-align: center; color: #666; padding: 24px; }
+        .track-list { list-style: none; }
+        .track-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 10px; margin-bottom: 4px; background: #16213e;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .track-item:hover { background: #1a2744; }
+        .track-item.playing { background: #0f3460; border-left: 3px solid #e94560; }
+        .track-num { color: #666; font-size: 0.85rem; width: 22px; text-align: center; flex-shrink: 0; }
+        .track-info { flex: 1; min-width: 0; }
+        .track-title {
+            font-weight: 600; font-size: 0.95rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .track-meta { font-size: 0.7rem; color: #888; margin-top: 2px; }
+        .track-match {
+            flex-shrink: 0; font-size: 0.75rem; font-weight: 600; padding: 3px 8px;
+            border-radius: 20px; background: rgba(119,221,119,0.15); color: #77dd77;
+        }
+
+        /* Player bar */
+        .player-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: #0f0f23;
+            border-top: 1px solid #333; padding: 10px 16px; display: none;
+            flex-direction: column; gap: 8px; z-index: 100;
+        }
+        .player-bar.visible { display: flex; }
+        .player-top { display: flex; align-items: center; gap: 12px; }
+        .player-controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .player-controls button {
+            background: none; border: none; color: #eee; font-size: 1.3rem;
+            cursor: pointer; padding: 4px; transition: color 0.2s;
+        }
+        .player-controls button:hover { color: #e94560; }
+        .player-track-name {
+            flex: 1; font-weight: 600; font-size: 0.9rem; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .player-bottom { display: flex; align-items: center; gap: 8px; }
+        .player-progress {
+            flex: 1; height: 6px; background: #333; border-radius: 3px;
+            cursor: pointer; position: relative;
+        }
+        .player-progress-fill {
+            height: 100%; background: #e94560; border-radius: 3px;
+            width: 0%; transition: width 0.1s linear;
+        }
+        .player-time { font-size: 0.7rem; color: #888; flex-shrink: 0; min-width: 32px; }
+
+        /* Library section */
+        .library-section { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+        .library-section h2 { text-align: center; margin-bottom: 12px; font-size: 1.1rem; color: #ccc; }
+        .library-info { text-align: center; color: #666; font-size: 0.85rem; }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block; width: 16px; height: 16px; border: 2px solid #444;
+            border-top-color: #e94560; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Progress for analysis */
+        .analysis-progress {
+            max-width: 400px; margin: 8px auto; background: #333; border-radius: 4px;
+            height: 6px; overflow: hidden;
+        }
+        .analysis-progress-fill {
+            height: 100%; background: #e94560; border-radius: 4px;
+            transition: width 0.3s; width: 0%;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>MusicWorld26</h1>
+    <p>Upload your music, pick your mood, let the vibe play</p>
+</header>
+
+<!-- Upload -->
+<section class="upload-section">
+    <div class="upload-area" id="upload-area">
+        <div class="upload-icon">&#127925;</div>
+        <p>Tap here to add music files</p>
+        <p style="font-size:0.75rem; color:#666; margin-top:4px">MP3, WAV, OGG, FLAC, M4A</p>
+    </div>
+    <input type="file" id="file-input" accept=".mp3,.wav,.ogg,.flac,.m4a,audio/*" multiple hidden>
+    <div id="upload-status"></div>
+</section>
+
+<!-- Library info -->
+<section class="library-section">
+    <div class="library-info" id="library-info">No tracks in library yet</div>
+</section>
+
+<!-- Mood selector -->
+<section class="mood-section">
+    <h2>How are you feeling?</h2>
+    <div class="mood-grid" id="mood-grid"></div>
+</section>
+
+<!-- Playlist -->
+<section class="playlist-section">
+    <h2 id="playlist-title">Select a mood to see your playlist</h2>
+    <div class="track-count" id="track-count"></div>
+    <ul class="track-list" id="track-list"></ul>
+    <div class="playlist-empty" id="playlist-empty"></div>
+</section>
+
+<!-- Player bar -->
+<div class="player-bar" id="player-bar">
+    <div class="player-top">
+        <div class="player-controls">
+            <button id="btn-prev" title="Previous">&#9198;</button>
+            <button id="btn-play" title="Play/Pause">&#9654;</button>
+            <button id="btn-next" title="Next">&#9197;</button>
+        </div>
+        <div class="player-track-name" id="player-track-name">&mdash;</div>
+    </div>
+    <div class="player-bottom">
+        <span class="player-time" id="time-elapsed">0:00</span>
+        <div class="player-progress" id="progress-bar">
+            <div class="player-progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="player-time" id="time-duration">0:00</span>
+    </div>
+</div>
+
+<script>
+// ========== MOOD DEFINITIONS ==========
+const MOODS = {
+    happy: {
+        label: "Happy", description: "Upbeat and cheerful", color: "#FFD700", icon: "\u2600\uFE0F",
+        targets: { bpm: 0.6, energy: 0.65, danceability: 0.6, valence: 0.85, acousticness: 0.4 },
+        weights: { bpm: 1, energy: 1, danceability: 1, valence: 2, acousticness: 0.5 }
+    },
+    sad: {
+        label: "Sad", description: "Melancholy and reflective", color: "#4A6FA5", icon: "\uD83C\uDF27\uFE0F",
+        targets: { bpm: 0.2, energy: 0.25, danceability: 0.2, valence: 0.15, acousticness: 0.7 },
+        weights: { bpm: 1, energy: 1.5, danceability: 0.8, valence: 2, acousticness: 1 }
+    },
+    energetic: {
+        label: "Energetic", description: "High energy, get moving", color: "#FF4500", icon: "\u26A1",
+        targets: { bpm: 0.8, energy: 0.9, danceability: 0.8, valence: 0.65, acousticness: 0.15 },
+        weights: { bpm: 1.5, energy: 2, danceability: 1.5, valence: 0.5, acousticness: 1 }
+    },
+    relaxed: {
+        label: "Relaxed", description: "Calm and peaceful", color: "#77DD77", icon: "\uD83C\uDF43",
+        targets: { bpm: 0.25, energy: 0.2, danceability: 0.25, valence: 0.55, acousticness: 0.75 },
+        weights: { bpm: 1.5, energy: 2, danceability: 1, valence: 0.5, acousticness: 1.5 }
+    },
+    romantic: {
+        label: "Romantic", description: "Love and tenderness", color: "#FF69B4", icon: "\u2764\uFE0F",
+        targets: { bpm: 0.3, energy: 0.35, danceability: 0.35, valence: 0.6, acousticness: 0.65 },
+        weights: { bpm: 1, energy: 1.5, danceability: 0.8, valence: 1.5, acousticness: 1.5 }
+    },
+    angry: {
+        label: "Angry", description: "Intense and aggressive", color: "#CC0000", icon: "\uD83D\uDD25",
+        targets: { bpm: 0.75, energy: 0.9, danceability: 0.5, valence: 0.2, acousticness: 0.1 },
+        weights: { bpm: 1, energy: 2, danceability: 0.5, valence: 1.5, acousticness: 1 }
+    },
+    party: {
+        label: "Party", description: "Dance floor ready", color: "#FF00FF", icon: "\uD83C\uDF89",
+        targets: { bpm: 0.7, energy: 0.8, danceability: 0.9, valence: 0.75, acousticness: 0.1 },
+        weights: { bpm: 1, energy: 1, danceability: 2.5, valence: 1, acousticness: 1 }
+    },
+    focus: {
+        label: "Focus", description: "Concentration and study", color: "#6A5ACD", icon: "\uD83E\uDDE0",
+        targets: { bpm: 0.4, energy: 0.35, danceability: 0.3, valence: 0.45, acousticness: 0.6 },
+        weights: { bpm: 1, energy: 2, danceability: 1.5, valence: 0.5, acousticness: 1 }
+    }
+};
+
+// ========== INDEXEDDB STORAGE ==========
+const DB_NAME = "MusicWorld26";
+const DB_VERSION = 1;
+let db = null;
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains("tracks")) {
+                d.createObjectStore("tracks", { keyPath: "id", autoIncrement: true });
+            }
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function dbAdd(track) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readwrite");
+        const req = tx.objectStore("tracks").add(track);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbUpdate(track) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readwrite");
+        const req = tx.objectStore("tracks").put(track);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbGetAll() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readonly");
+        const req = tx.objectStore("tracks").getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// ========== AUDIO ANALYSIS (Web Audio API) ==========
+async function analyzeAudio(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    let audioBuffer;
+    try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } finally {
+        audioCtx.close();
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const channelData = audioBuffer.getChannelData(0);
+
+    // Use up to 2 minutes for analysis
+    const maxSamples = Math.min(channelData.length, sampleRate * 120);
+    const samples = channelData.slice(0, maxSamples);
+
+    const bpm = detectBPM(samples, sampleRate);
+    const energy = calcEnergy(samples);
+    const danceability = calcDanceability(samples, sampleRate);
+    const valence = calcValence(samples, sampleRate);
+    const acousticness = calcAcousticness(samples, sampleRate);
+
+    return {
+        bpm: Math.round(bpm * 10) / 10,
+        energy: Math.round(energy * 1000) / 1000,
+        danceability: Math.round(danceability * 1000) / 1000,
+        valence: Math.round(valence * 1000) / 1000,
+        acousticness: Math.round(acousticness * 1000) / 1000
+    };
+}
+
+function detectBPM(samples, sr) {
+    // Onset detection using energy differences in windows
+    const winSize = Math.floor(sr * 0.02); // 20ms windows
+    const hopSize = Math.floor(winSize / 2);
+    const energies = [];
+
+    for (let i = 0; i + winSize < samples.length; i += hopSize) {
+        let sum = 0;
+        for (let j = i; j < i + winSize; j++) {
+            sum += samples[j] * samples[j];
+        }
+        energies.push(sum / winSize);
+    }
+
+    // Onset strength = positive energy differences
+    const onsets = [];
+    for (let i = 1; i < energies.length; i++) {
+        onsets.push(Math.max(0, energies[i] - energies[i - 1]));
+    }
+
+    // Autocorrelation to find tempo
+    const minBPM = 60, maxBPM = 200;
+    const onsetsPerSec = sr / hopSize;
+    const minLag = Math.floor(onsetsPerSec * 60 / maxBPM);
+    const maxLag = Math.floor(onsetsPerSec * 60 / minBPM);
+
+    let bestLag = minLag, bestCorr = 0;
+    for (let lag = minLag; lag <= Math.min(maxLag, onsets.length - 1); lag++) {
+        let corr = 0;
+        const n = Math.min(onsets.length - lag, 2000);
+        for (let i = 0; i < n; i++) {
+            corr += onsets[i] * onsets[i + lag];
+        }
+        if (corr > bestCorr) {
+            bestCorr = corr;
+            bestLag = lag;
+        }
+    }
+
+    return (onsetsPerSec * 60) / bestLag;
+}
+
+function calcEnergy(samples) {
+    let sum = 0;
+    for (let i = 0; i < samples.length; i++) {
+        sum += samples[i] * samples[i];
+    }
+    const rms = Math.sqrt(sum / samples.length);
+    return Math.min(1.0, rms / 0.1);
+}
+
+function calcDanceability(samples, sr) {
+    // Based on beat regularity and strength
+    const winSize = Math.floor(sr * 0.02);
+    const hopSize = Math.floor(winSize / 2);
+    const energies = [];
+
+    for (let i = 0; i + winSize < samples.length; i += hopSize) {
+        let sum = 0;
+        for (let j = i; j < i + winSize; j++) sum += samples[j] * samples[j];
+        energies.push(sum / winSize);
+    }
+
+    // Measure how periodic the energy envelope is
+    const onsetsPerSec = sr / hopSize;
+    const targetLag = Math.floor(onsetsPerSec * 0.5); // ~120 BPM area
+
+    let peakCorr = 0, totalCorr = 0, count = 0;
+    const searchRange = Math.floor(targetLag * 0.5);
+    for (let lag = Math.max(1, targetLag - searchRange); lag <= targetLag + searchRange; lag++) {
+        let corr = 0;
+        const n = Math.min(energies.length - lag, 2000);
+        for (let i = 0; i < n; i++) corr += energies[i] * energies[i + lag];
+        if (corr > peakCorr) peakCorr = corr;
+        totalCorr += corr;
+        count++;
+    }
+
+    const ratio = count > 0 ? peakCorr / (totalCorr / count + 1e-10) : 0;
+    return Math.min(1.0, ratio / 3.0);
+}
+
+function calcValence(samples, sr) {
+    // Spectral brightness as a proxy for valence
+    const fftSize = 2048;
+    const numFrames = Math.min(100, Math.floor(samples.length / fftSize));
+    let brightnessSum = 0;
+
+    for (let f = 0; f < numFrames; f++) {
+        const offset = Math.floor((f / numFrames) * (samples.length - fftSize));
+        const frame = samples.slice(offset, offset + fftSize);
+
+        // Simple DFT magnitude for lower bins
+        const numBins = 256;
+        let lowEnergy = 0, highEnergy = 0;
+        for (let k = 0; k < numBins; k++) {
+            let re = 0, im = 0;
+            for (let n = 0; n < fftSize; n++) {
+                const angle = -2 * Math.PI * k * n / fftSize;
+                re += frame[n] * Math.cos(angle);
+                im += frame[n] * Math.sin(angle);
+            }
+            const mag = Math.sqrt(re * re + im * im);
+            const freqHz = (k * sr) / fftSize;
+            if (freqHz < 1000) lowEnergy += mag;
+            else highEnergy += mag;
+        }
+        brightnessSum += highEnergy / (lowEnergy + highEnergy + 1e-10);
+    }
+
+    return Math.min(1.0, brightnessSum / numFrames * 2);
+}
+
+function calcAcousticness(samples, sr) {
+    // High zero-crossing rate + spectral flatness = less acoustic
+    let zcr = 0;
+    for (let i = 1; i < samples.length; i++) {
+        if ((samples[i] >= 0) !== (samples[i - 1] >= 0)) zcr++;
+    }
+    zcr /= samples.length;
+
+    // Normalized — acoustic music typically has lower ZCR
+    return Math.min(1.0, Math.max(0.0, 1.0 - zcr * 15));
+}
+
+// ========== MOOD MATCHING ==========
+function normalizeBPM(bpm) {
+    return Math.max(0, Math.min(1, (bpm - 60) / 120));
+}
+
+function scoreTrack(track, moodKey) {
+    const mood = MOODS[moodKey];
+    const features = {
+        bpm: normalizeBPM(track.bpm),
+        energy: track.energy,
+        danceability: track.danceability,
+        valence: track.valence,
+        acousticness: track.acousticness
+    };
+
+    let total = 0;
+    for (const [feat, target] of Object.entries(mood.targets)) {
+        const diff = features[feat] - target;
+        total += mood.weights[feat] * diff * diff;
+    }
+    return Math.sqrt(total);
+}
+
+function getTracksForMood(tracks, moodKey, limit = 20) {
+    const scored = tracks
+        .filter(t => t.analyzed)
+        .map(t => ({ ...t, _score: scoreTrack(t, moodKey) }));
+
+    scored.sort((a, b) => a._score - b._score);
+
+    return scored.slice(0, limit).map(t => ({
+        ...t,
+        mood_score: Math.round((1 - Math.min(t._score / 2, 1)) * 100) / 100
+    }));
+}
+
+// ========== UI ==========
+let currentPlaylist = [];
+let currentTrackIndex = -1;
+let isPlaying = false;
+let currentMood = null;
+
+const audio = new Audio();
+const moodGrid = document.getElementById("mood-grid");
+const trackList = document.getElementById("track-list");
+const playlistTitle = document.getElementById("playlist-title");
+const playlistEmpty = document.getElementById("playlist-empty");
+const trackCount = document.getElementById("track-count");
+const uploadArea = document.getElementById("upload-area");
+const fileInput = document.getElementById("file-input");
+const uploadStatus = document.getElementById("upload-status");
+const playerBar = document.getElementById("player-bar");
+const playerTrackName = document.getElementById("player-track-name");
+const btnPrev = document.getElementById("btn-prev");
+const btnPlay = document.getElementById("btn-play");
+const btnNext = document.getElementById("btn-next");
+const progressBar = document.getElementById("progress-bar");
+const progressFill = document.getElementById("progress-fill");
+const timeElapsed = document.getElementById("time-elapsed");
+const timeDuration = document.getElementById("time-duration");
+const libraryInfo = document.getElementById("library-info");
+
+function renderMoods() {
+    moodGrid.innerHTML = "";
+    for (const [key, mood] of Object.entries(MOODS)) {
+        const btn = document.createElement("div");
+        btn.className = "mood-btn" + (key === currentMood ? " active" : "");
+        btn.style.color = mood.color;
+        btn.dataset.mood = key;
+        btn.innerHTML = `
+            <span class="mood-icon">${mood.icon}</span>
+            <span class="mood-label">${mood.label}</span>
+            <span class="mood-desc">${mood.description}</span>
+        `;
+        btn.addEventListener("click", () => selectMood(key));
+        moodGrid.appendChild(btn);
+    }
+}
+
+async function selectMood(moodKey) {
+    currentMood = moodKey;
+    renderMoods();
+
+    const mood = MOODS[moodKey];
+    playlistTitle.textContent = mood.label + " Playlist";
+    playlistEmpty.style.display = "none";
+    trackCount.textContent = "";
+    trackList.innerHTML = '<div style="text-align:center;color:#888;padding:16px"><span class="spinner"></span>Finding tracks...</div>';
+
+    const allTracks = await dbGetAll();
+    const analyzed = allTracks.filter(t => t.analyzed);
+
+    if (analyzed.length === 0) {
+        trackList.innerHTML = "";
+        playlistEmpty.textContent = "No tracks yet. Upload some music first!";
+        playlistEmpty.style.display = "block";
+        return;
+    }
+
+    currentPlaylist = getTracksForMood(analyzed, moodKey);
+    trackCount.textContent = currentPlaylist.length + " track" + (currentPlaylist.length !== 1 ? "s" : "");
+    renderPlaylist();
+}
+
+function renderPlaylist() {
+    trackList.innerHTML = "";
+    playlistEmpty.style.display = "none";
+
+    currentPlaylist.forEach((track, i) => {
+        const li = document.createElement("li");
+        li.className = "track-item" + (i === currentTrackIndex ? " playing" : "");
+        li.innerHTML = `
+            <span class="track-num">${i + 1}</span>
+            <div class="track-info">
+                <div class="track-title">${track.title}</div>
+                <div class="track-meta">${track.bpm} BPM &middot; Energy ${Math.round(track.energy * 100)}%</div>
+            </div>
+            <span class="track-match">${Math.round(track.mood_score * 100)}%</span>
+        `;
+        li.addEventListener("click", () => playTrack(i));
+        trackList.appendChild(li);
+    });
+}
+
+// ========== PLAYBACK ==========
+function playTrack(index) {
+    if (index < 0 || index >= currentPlaylist.length) return;
+
+    currentTrackIndex = index;
+    const track = currentPlaylist[index];
+
+    // Create blob URL from stored audio data
+    const blob = new Blob([track.audioData], { type: track.mimeType });
+    const url = URL.createObjectURL(blob);
+
+    audio.src = url;
+    audio.play();
+    isPlaying = true;
+
+    playerTrackName.textContent = track.title;
+    btnPlay.textContent = "\u23F8";
+    playerBar.classList.add("visible");
+    renderPlaylist();
+}
+
+function togglePlay() {
+    if (!audio.src) return;
+    if (isPlaying) {
+        audio.pause();
+        btnPlay.textContent = "\u25B6";
+    } else {
+        audio.play();
+        btnPlay.textContent = "\u23F8";
+    }
+    isPlaying = !isPlaying;
+}
+
+function playNext() {
+    if (currentTrackIndex < currentPlaylist.length - 1) playTrack(currentTrackIndex + 1);
+}
+
+function playPrev() {
+    if (audio.currentTime > 3) audio.currentTime = 0;
+    else if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1);
+}
+
+btnPlay.addEventListener("click", togglePlay);
+btnNext.addEventListener("click", playNext);
+btnPrev.addEventListener("click", playPrev);
+
+audio.addEventListener("timeupdate", () => {
+    if (audio.duration) {
+        progressFill.style.width = (audio.currentTime / audio.duration * 100) + "%";
+        timeElapsed.textContent = formatTime(audio.currentTime);
+        timeDuration.textContent = formatTime(audio.duration);
+    }
+});
+audio.addEventListener("ended", playNext);
+
+progressBar.addEventListener("click", (e) => {
+    if (!audio.duration) return;
+    const rect = progressBar.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+});
+
+function formatTime(s) {
+    const m = Math.floor(s / 60);
+    return m + ":" + Math.floor(s % 60).toString().padStart(2, "0");
+}
+
+// ========== FILE UPLOAD & ANALYSIS ==========
+uploadArea.addEventListener("click", () => fileInput.click());
+
+uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("drag-over"); });
+uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("drag-over"));
+uploadArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) handleFiles(fileInput.files);
+});
+
+async function handleFiles(files) {
+    const total = files.length;
+    let done = 0;
+
+    for (const file of files) {
+        done++;
+        uploadStatus.innerHTML = `<span class="spinner"></span>Analyzing ${done}/${total}: ${file.name}...`;
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const features = await analyzeAudio(file);
+
+            const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ")
+                .replace(/\b\w/g, c => c.toUpperCase());
+
+            const track = {
+                filename: file.name,
+                title: title,
+                mimeType: file.type || "audio/mpeg",
+                audioData: arrayBuffer,
+                bpm: features.bpm,
+                energy: features.energy,
+                danceability: features.danceability,
+                valence: features.valence,
+                acousticness: features.acousticness,
+                analyzed: true
+            };
+
+            await dbAdd(track);
+        } catch (err) {
+            console.error("Failed to process " + file.name, err);
+            uploadStatus.innerHTML = `Failed: ${file.name} - ${err.message}`;
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+
+    uploadStatus.textContent = `${total} track${total > 1 ? "s" : ""} added to library!`;
+    fileInput.value = "";
+    updateLibraryCount();
+
+    // Refresh playlist if a mood is selected
+    if (currentMood) selectMood(currentMood);
+
+    setTimeout(() => { uploadStatus.textContent = ""; }, 4000);
+}
+
+async function updateLibraryCount() {
+    const tracks = await dbGetAll();
+    const analyzed = tracks.filter(t => t.analyzed).length;
+    if (analyzed === 0) {
+        libraryInfo.textContent = "No tracks in library yet";
+    } else {
+        libraryInfo.textContent = analyzed + " track" + (analyzed !== 1 ? "s" : "") + " in your library";
+    }
+}
+
+// ========== INIT ==========
+async function init() {
+    await openDB();
+    renderMoods();
+    updateLibraryCount();
+}
+
+init();
+</script>
+</body>
+</html>
