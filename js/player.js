@@ -21,7 +21,7 @@ const Player = {
         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         this.analyser = this.audioCtx.createAnalyser();
         this.analyser.fftSize = 256;
-        this.analyser.smoothingTimeConstant = 0.8;
+        this.analyser.smoothingTimeConstant = 0.3;
         this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
 
         /* Connect HTML Audio element → analyser → destination */

@@ -33,8 +33,8 @@ const VUMeters = {
 
     update(leftLevel, rightLevel) {
         /* Smoothing */
-        this.lL += (leftLevel  - this.lL) * 0.35;
-        this.lR += (rightLevel - this.lR) * 0.35;
+        this.lL += (leftLevel  - this.lL) * 0.65;
+        this.lR += (rightLevel - this.lR) * 0.65;
         /* Peak hold with slow decay */
         if (leftLevel  > this.pL) this.pL = leftLevel;  else this.pL *= 0.993;
         if (rightLevel > this.pR) this.pR = rightLevel;  else this.pR *= 0.993;
