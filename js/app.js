@@ -397,7 +397,9 @@
     };
 
     Player.onPlayStateChange = (playing) => {
-        const icon = playing ? '\u23F8' : '\u25B6';     // ⏸ or ▶
+        const icon = playing
+            ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="5" height="18" rx="1"/><rect x="14" y="3" width="5" height="18" rx="1"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>';
         $('#btn-play-pause').innerHTML   = icon;
         $('#mini-play-pause').innerHTML  = icon;
         $('#btn-play-pause').classList.toggle('playing', playing);
