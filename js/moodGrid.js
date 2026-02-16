@@ -209,7 +209,9 @@ const MoodGrid = {
         window.addEventListener('resize', () => this.resize());
     },
 
-    /* Return track IDs sorted by distance to selection (in normalised space) */
+    /* Return track IDs sorted by distance to selection (in normalised space).
+       Duplicates (same name + artist) are removed — only the nearest copy
+       is kept, and extra tracks are pulled in to maintain the requested count. */
     getTracksNearSelection(count) {
         if (!this.selection) return [];
         const sx = this.selection.x;
@@ -223,8 +225,19 @@ const MoodGrid = {
             })
             .sort((a, b) => a.dist - b.dist);
 
-        if (count === 0) return sorted.map(s => s.id);          // continuous = all, nearest first
-        return sorted.slice(0, count).map(s => s.id);
+        /* Deduplicate: keep only the first (nearest) copy of each track */
+        const seen = new Set();
+        const unique = [];
+        for (const entry of sorted) {
+            const key = (entry.track.name || '').toLowerCase() + '|||' +
+                        (entry.track.artist || '').toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            unique.push(entry.id);
+        }
+
+        if (count === 0) return unique;                          // continuous = all, nearest first
+        return unique.slice(0, count);
     },
 
     clearSelection() {
