@@ -130,40 +130,123 @@ const Analyzer = {
     },
 
     /* ============================================================
-       Mood analysis  (spectral brightness + energy → 0‒1 score)
+       Mood analysis  (chromagram key detection → 0‒1 valence)
+
+       Detects whether the music is in a major key (happy) or
+       minor key (sad) by correlating a chromagram against the
+       Krumhansl-Kessler key profiles.  This is the single
+       strongest predictor of perceived valence in tonal music.
        ============================================================ */
     analyzeMood(buf) {
         const data = buf.getChannelData(0);
         const sr   = buf.sampleRate;
-        const segLen  = Math.floor(sr * 2);           // 2-second segments
-        const numSegs = Math.min(10, Math.floor(data.length / segLen));
+        const N    = 8192;                             // FFT window size
+        const numSegs = Math.min(24, Math.floor(data.length / N));
         if (numSegs === 0) return 0.5;
 
-        let totalZCR = 0, totalEnergy = 0, totalHF = 0;
+        /* Accumulate a chromagram (12 pitch classes) across segments */
+        const chroma = new Float32Array(12);
 
         for (let s = 0; s < numSegs; s++) {
-            const off = Math.floor((data.length - segLen) * s / Math.max(1, numSegs - 1));
-            let crossings = 0, energy = 0, hfEnergy = 0;
+            const off = Math.floor((data.length - N) * s / Math.max(1, numSegs - 1));
 
-            for (let i = 1; i < segLen; i++) {
-                if ((data[off + i] >= 0) !== (data[off + i - 1] >= 0)) crossings++;
-                energy += data[off + i] * data[off + i];
-                const diff = data[off + i] - data[off + i - 1];
-                hfEnergy += diff * diff;
+            /* Hann-windowed segment */
+            const win = new Float32Array(N);
+            for (let i = 0; i < N; i++)
+                win[i] = data[off + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / N));
+
+            const mag = this._fft(win);
+
+            /* Map FFT bins → pitch classes (C2 65 Hz – C7 2100 Hz) */
+            for (let bin = 1; bin < N / 2; bin++) {
+                const freq = bin * sr / N;
+                if (freq < 65 || freq > 2100) continue;
+                const midi = 12 * Math.log2(freq / 440) + 69;
+                const pc   = ((Math.round(midi) % 12) + 12) % 12;
+                chroma[pc] += mag[bin] * mag[bin];        // accumulate energy
             }
-
-            totalZCR    += crossings / segLen;
-            totalEnergy += Math.sqrt(energy / segLen);
-            totalHF     += hfEnergy / (energy + 1e-8);
         }
 
-        const zcrN = Math.min(1, (totalZCR / numSegs) * 5);
-        const engN = Math.min(1, (totalEnergy / numSegs) * 3);
-        const hfN  = Math.min(1, totalHF / numSegs);
+        /* Normalise to unit sum */
+        const sum = chroma.reduce((a, b) => a + b, 0);
+        if (sum === 0) return 0.5;
+        for (let i = 0; i < 12; i++) chroma[i] /= sum;
 
-        const raw = zcrN * 0.4 + engN * 0.3 + hfN * 0.3;
-        /* Spread the typical 0.2–0.7 cluster across the full 0–1 range */
-        return Math.min(1, Math.max(0, (raw - 0.2) / 0.6));
+        /* Krumhansl-Kessler key profiles (C-major / C-minor templates) */
+        const major = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+        const minor = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+        /* Try all 12 rotations, keep best Pearson r for major & minor */
+        let bestMaj = -2, bestMin = -2;
+        for (let root = 0; root < 12; root++) {
+            const rot = new Float32Array(12);
+            for (let i = 0; i < 12; i++) rot[i] = chroma[(i + root) % 12];
+            bestMaj = Math.max(bestMaj, this._pearson(rot, major));
+            bestMin = Math.max(bestMin, this._pearson(rot, minor));
+        }
+
+        /* Mode difference → valence: major = happy (→1), minor = sad (→0)
+           Typical |diff| is 0.05–0.25 for tonal music */
+        const diff = bestMaj - bestMin;
+        return Math.min(1, Math.max(0, diff / 0.4 + 0.5));
+    },
+
+    /* Radix-2 Cooley-Tukey FFT → magnitude spectrum (first N/2 bins) */
+    _fft(signal) {
+        const N    = signal.length;
+        const bits = Math.round(Math.log2(N));
+        const re   = new Float32Array(N);
+        const im   = new Float32Array(N);
+
+        /* Bit-reversal permutation */
+        for (let i = 0; i < N; i++) {
+            let rev = 0;
+            for (let j = 0; j < bits; j++) rev = (rev << 1) | ((i >> j) & 1);
+            re[rev] = signal[i];
+        }
+
+        /* Butterfly stages */
+        for (let size = 2; size <= N; size *= 2) {
+            const half  = size >> 1;
+            const angle = -2 * Math.PI / size;
+            for (let i = 0; i < N; i += size) {
+                for (let j = 0; j < half; j++) {
+                    const cos = Math.cos(angle * j);
+                    const sin = Math.sin(angle * j);
+                    const k   = i + j + half;
+                    const tr  = re[k] * cos - im[k] * sin;
+                    const ti  = re[k] * sin + im[k] * cos;
+                    re[k]     = re[i + j] - tr;
+                    im[k]     = im[i + j] - ti;
+                    re[i + j] += tr;
+                    im[i + j] += ti;
+                }
+            }
+        }
+
+        /* Magnitude of first N/2 bins */
+        const mag = new Float32Array(N >> 1);
+        for (let i = 0; i < mag.length; i++)
+            mag[i] = Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+        return mag;
+    },
+
+    /* Pearson correlation coefficient between two arrays */
+    _pearson(x, y) {
+        const n = x.length;
+        let mx = 0, my = 0;
+        for (let i = 0; i < n; i++) { mx += x[i]; my += y[i]; }
+        mx /= n; my /= n;
+
+        let num = 0, dx2 = 0, dy2 = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - mx, dy = y[i] - my;
+            num += dx * dy;
+            dx2 += dx * dx;
+            dy2 += dy * dy;
+        }
+        const den = Math.sqrt(dx2 * dy2);
+        return den > 0 ? num / den : 0;
     },
 
     normalizeBPM(bpm) {
