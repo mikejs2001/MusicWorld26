@@ -261,7 +261,8 @@ body{
 #player-controls{display:flex;align-items:center;gap:16px}
 .ctrl-btn{
     background:radial-gradient(circle at 35% 30%,#f06060,#c62828 50%,#7a0000 100%);
-    border:2px solid #3d0000;color:#ffe0e0;
+    border:2px solid #3d0000;
+    color:rgba(60,0,0,.55);
     width:52px;height:52px;border-radius:50%;font-size:18px;
     cursor:pointer;transition:all .12s ease;
     display:flex;align-items:center;justify-content:center;
@@ -270,7 +271,11 @@ body{
         0 2px 3px rgba(0,0,0,.3),
         inset 0 2px 3px rgba(255,160,160,.25),
         inset 0 -2px 3px rgba(0,0,0,.3);
-    text-shadow:0 1px 2px rgba(0,0,0,.5);
+    text-shadow:
+        0 -1px 1px rgba(0,0,0,.4),
+        0 1px 1px rgba(255,160,160,.3);
+    font-family:'Segoe UI Symbol','Apple Symbols',sans-serif;
+    line-height:1;
     -webkit-tap-highlight-color:transparent;
 }
 .ctrl-btn:hover{
@@ -283,9 +288,13 @@ body{
 }
 .ctrl-btn:active{
     background:radial-gradient(circle at 50% 50%,#a51c1c,#7a0000 70%,#4a0000 100%);
+    color:rgba(40,0,0,.6);
     box-shadow:
         0 1px 2px rgba(0,0,0,.4),
         inset 0 3px 6px rgba(0,0,0,.4);
+    text-shadow:
+        0 -1px 1px rgba(0,0,0,.5),
+        0 1px 1px rgba(255,120,120,.2);
     transform:translateY(2px);
 }
 .ctrl-btn.big{
