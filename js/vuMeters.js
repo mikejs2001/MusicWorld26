@@ -17,9 +17,20 @@ const VUMeters = {
     },
 
     resize() {
+        const landscape = document.body.classList.contains('landscape');
         [this.leftCanvas, this.rightCanvas].forEach(c => {
             const parent = c.parentElement;
-            const w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
+            let w;
+            if (landscape) {
+                /* Landscape: VU meters are the hero — fill most of the viewport height */
+                const maxH = Math.floor(window.innerHeight * 0.75);
+                const hRatio = this.style === 'needle' ? 0.75 : 0.8;
+                w = Math.floor(maxH / hRatio);
+                /* Don't exceed half the parent width (two meters side by side) */
+                w = Math.min(w, Math.floor(parent.clientWidth / 2 - 10));
+            } else {
+                w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
+            }
             const h = this.style === 'needle' ? Math.floor(w * 0.75) : Math.floor(w * 0.8);
             const dpr = window.devicePixelRatio;
             c.width  = w * dpr;
