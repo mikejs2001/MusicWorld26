@@ -45,6 +45,7 @@ body{
 }
 .menu-btn:hover{color:#e0e0e0;background:#222}
 .menu-btn.active{color:#00e676;background:#1a2e1f}
+.menu-divider{border:none;border-top:1px solid #2a2a2a;margin:4px 0}
 
 /* ===== Views ===== */
 #main-content{flex:1;overflow-y:auto;position:relative}

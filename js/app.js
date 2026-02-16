@@ -133,6 +133,26 @@
     });
 
     /* ============================================================
+       Fullscreen toggle
+       ============================================================ */
+    const btnFS = $('#btn-fullscreen');
+    function updateFSLabel() {
+        btnFS.textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'Fullscreen';
+    }
+
+    btnFS.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen();
+        }
+        menuDropdown.classList.add('hidden');
+        menuDotsBtn.setAttribute('aria-expanded', 'false');
+    });
+
+    document.addEventListener('fullscreenchange', updateFSLabel);
+
+    /* ============================================================
        Mood Grid — selection & playlist generation
        ============================================================ */
     MoodGrid.onSelect = () => {
