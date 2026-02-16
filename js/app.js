@@ -555,10 +555,15 @@
         document.body.classList.toggle('landscape', isLandscape);
         document.body.classList.toggle('playing', Player.isPlaying);
 
-        /* Resize canvases after layout settles */
+        /* Resize canvases after layout settles.
+           Double rAF: first frame applies the class, second frame
+           lets the CSS grid/flexbox reflow finish so element
+           dimensions are final before we measure them. */
         requestAnimationFrame(() => {
-            VUMeters.resize();
-            MoodGrid.resize();
+            requestAnimationFrame(() => {
+                VUMeters.resize();
+                MoodGrid.resize();
+            });
         });
     }
 

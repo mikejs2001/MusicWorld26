@@ -26,8 +26,11 @@ const VUMeters = {
                 const maxH = Math.floor(window.innerHeight * 0.75);
                 const hRatio = this.style === 'needle' ? 0.75 : 0.8;
                 w = Math.floor(maxH / hRatio);
-                /* Don't exceed half the parent width (two meters side by side) */
-                w = Math.min(w, Math.floor(parent.clientWidth / 2 - 10));
+                /* Cap to half the viewport width (two meters side by side).
+                   Use window.innerWidth, NOT parent.clientWidth — the parent
+                   may not have finished its CSS grid reflow yet after an
+                   orientation change, so its clientWidth can be stale. */
+                w = Math.min(w, Math.floor(window.innerWidth / 2 - 20));
             } else {
                 w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
             }
