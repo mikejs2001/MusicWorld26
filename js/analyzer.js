@@ -47,84 +47,86 @@ const Analyzer = {
     },
 
     /* ============================================================
-       BPM detection  (energy-envelope peak picking)
+       BPM detection  (autocorrelation of onset energy envelope)
        ============================================================ */
     detectBPM(buf) {
         const data = buf.getChannelData(0);
         const sr   = buf.sampleRate;
 
-        /* Take a 16-second slice from the middle for better accuracy */
-        const start = Math.floor(Math.max(0, buf.duration / 2 - 8) * sr);
-        const end   = Math.min(data.length, start + 16 * sr);
+        /* Use a 20-second slice from the middle */
+        const start = Math.floor(Math.max(0, buf.duration / 2 - 10) * sr);
+        const end   = Math.min(data.length, start + 20 * sr);
         const seg   = data.subarray(start, end);
 
-        /* Low-pass via simple moving average (≈200 Hz cutoff) */
-        const winMs  = 10;                        // 10 ms energy windows
+        /* Build onset-strength envelope (energy in short windows) */
+        const winMs  = 10;                        // 10 ms windows
         const winSz  = Math.floor(sr * winMs / 1000);
-        const energies = [];
+        const env = [];
         for (let i = 0; i < seg.length - winSz; i += winSz) {
             let e = 0;
             for (let j = 0; j < winSz; j++) e += seg[i + j] * seg[i + j];
-            energies.push(e / winSz);
+            env.push(e / winSz);
         }
 
-        /* Adaptive threshold = mean × 1.4 */
-        const mean = energies.reduce((a, b) => a + b, 0) / energies.length;
-        const thresh = mean * 1.4;
+        /* Half-wave rectified first-difference (onset detection function) */
+        const onset = new Float32Array(env.length);
+        for (let i = 1; i < env.length; i++) {
+            onset[i] = Math.max(0, env[i] - env[i - 1]);
+        }
 
-        /* Collect onset peaks (require ≥ 60 ms gap) */
-        const minGap = Math.ceil(60 / winMs);
-        const peaks  = [];
-        for (let i = 1; i < energies.length - 1; i++) {
-            if (energies[i] > thresh &&
-                energies[i] >= energies[i - 1] &&
-                energies[i] >= energies[i + 1] &&
-                (peaks.length === 0 || i - peaks[peaks.length - 1] >= minGap)) {
-                peaks.push(i);
+        /* Subtract the mean so autocorrelation isn't biased by DC offset */
+        const mean = onset.reduce((a, b) => a + b, 0) / onset.length;
+        for (let i = 0; i < onset.length; i++) onset[i] -= mean;
+
+        /* Autocorrelation over lag range corresponding to 40–200 BPM */
+        const minLag = Math.floor(60 / (200 * winMs / 1000));  // 200 BPM
+        const maxLag = Math.ceil(60 / (40 * winMs / 1000));    //  40 BPM
+        const N = onset.length;
+        const corr = [];
+
+        for (let lag = minLag; lag <= Math.min(maxLag, N - 1); lag++) {
+            let sum = 0;
+            for (let i = 0; i < N - lag; i++) sum += onset[i] * onset[i + lag];
+            corr.push({ lag, val: sum / (N - lag) });
+        }
+
+        if (corr.length === 0) return 120;           // fallback
+
+        /* Find all peaks in the autocorrelation */
+        const peaks = [];
+        for (let i = 1; i < corr.length - 1; i++) {
+            if (corr[i].val > corr[i - 1].val && corr[i].val > corr[i + 1].val) {
+                peaks.push(corr[i]);
             }
         }
 
-        if (peaks.length < 4) return 120;           // fallback
+        if (peaks.length === 0) return 120;           // fallback
 
-        /* Collect all inter-onset intervals */
-        const intervals = [];
-        for (let i = 1; i < peaks.length; i++) {
-            intervals.push(peaks[i] - peaks[i - 1]);
+        /* Score each peak: raw correlation strength + musical-range bonus.
+           Strongly prefer the 70–145 BPM range where most music sits.
+           Also check if a peak at half-tempo exists (harmonic consistency). */
+        let bestBpm = 120, bestScore = -Infinity;
+
+        for (const pk of peaks) {
+            const bpm = 60 / (pk.lag * winMs / 1000);
+            let score = pk.val;
+
+            /* Strong preference for the common tempo range */
+            if (bpm >= 70 && bpm <= 145) score *= 2.0;
+            else if (bpm >= 55 && bpm <= 165) score *= 1.3;
+
+            /* Check for harmonic support: is there also a peak near 2× this lag? */
+            const dblLag = pk.lag * 2;
+            const halfPeak = peaks.find(p => Math.abs(p.lag - dblLag) <= 2);
+            if (halfPeak) score *= 1.4;
+
+            if (score > bestScore) { bestScore = score; bestBpm = bpm; }
         }
 
-        /* Autocorrelation on intervals to find the dominant beat period.
-           Check both the raw interval and half/double groupings. */
-        const hist = {};
-        for (const iv of intervals) {
-            const q = Math.round(iv / 2) * 2; // quantise
-            hist[q] = (hist[q] || 0) + 1;
-            /* Also count double-intervals (half BPM candidate) */
-            const dbl = Math.round(iv * 2 / 2) * 2;
-            hist[dbl] = (hist[dbl] || 0) + 0.6;
-        }
-
-        /* Also check pairs of consecutive intervals (catches half-time) */
-        for (let i = 0; i < intervals.length - 1; i++) {
-            const pair = intervals[i] + intervals[i + 1];
-            const q = Math.round(pair / 2) * 2;
-            hist[q] = (hist[q] || 0) + 0.8;
-        }
-
-        /* Find the best candidate, preferring the 70-150 BPM range */
-        let bestGap = 0, bestScore = 0;
-        for (const [g, c] of Object.entries(hist)) {
-            const gap = Number(g);
-            const bpmCandidate = 60 / (gap * winMs / 1000);
-            /* Bonus for the sweet-spot range (70-150 BPM) */
-            const rangeBonus = (bpmCandidate >= 70 && bpmCandidate <= 150) ? 1.5 : 1.0;
-            const score = c * rangeBonus;
-            if (score > bestScore) { bestScore = score; bestGap = gap; }
-        }
-
-        let bpm = 60 / (bestGap * winMs / 1000);
-        while (bpm > 180) bpm /= 2;
-        while (bpm < 60)  bpm *= 2;
-        return Math.round(bpm);
+        /* Final sanity clamp */
+        while (bestBpm > 170) bestBpm /= 2;
+        while (bestBpm < 55)  bestBpm *= 2;
+        return Math.round(bestBpm);
     },
 
     /* ============================================================
