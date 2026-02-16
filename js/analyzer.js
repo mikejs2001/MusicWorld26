@@ -263,18 +263,35 @@ const Analyzer = {
 
         if (relativePath) {
             const parts = relativePath.split('/').filter(Boolean);
-            if (parts.length >= 2) album = parts[parts.length - 2];
+            if (parts.length >= 2) album = this._cleanField(parts[parts.length - 2]);
         }
 
         /* "Artist - Title" */
         const dash = name.match(/^(.+?)\s*[-–—]\s*(.+)$/);
-        if (dash) return { artist: dash[1].trim(), title: dash[2].trim(), album };
+        if (dash) return { artist: this._cleanField(dash[1]), title: this._cleanField(dash[2]), album };
 
         /* "01 Title" or "01. Title" */
         const num = name.match(/^\d+\.?\s*(.+)$/);
-        if (num) return { artist: 'Unknown Artist', title: num[1].trim(), album };
+        if (num) return { artist: 'Unknown Artist', title: this._cleanField(num[1]), album };
 
-        return { artist: 'Unknown Artist', title: name.trim(), album };
+        return { artist: 'Unknown Artist', title: this._cleanField(name), album };
+    },
+
+    /** Clean a filename-derived field: strip suffixes, underscores → spaces, title-case */
+    _cleanField(text) {
+        if (!text) return text;
+        text = text.trim()
+            .replace(/[_\s]+(observer|remaster(?:ed)?|mono|stereo|explicit|clean|bonus(?:[_\s]*track)?)$/i, '')
+            .replace(/_/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        const lc = text.toLowerCase();
+        if (text === lc || text === text.toUpperCase()) {
+            const small = new Set(['a','an','the','and','but','or','for','nor','on','at','to','in','of','with','by','is','vs']);
+            text = lc.split(' ').map((w, i) => {
+                if (i > 0 && small.has(w)) return w;
+                return w.charAt(0).toUpperCase() + w.slice(1);
+            }).join(' ');
+        }
+        return text;
     },
 
     /* ============================================================

@@ -13,6 +13,36 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
+    /* ============================================================
+       Display-name formatter
+       Cleans up filenames formatted for older systems:
+         the_great_pretender  →  The Great Pretender
+         my_song_observer     →  My Song
+       Only applies title-case when text looks auto-formatted
+       (all-lowercase or all-uppercase). Mixed-case ID3 tags
+       are left as-is.
+       ============================================================ */
+    const _smallWords = new Set([
+        'a','an','the','and','but','or','for','nor',
+        'on','at','to','in','of','with','by','is','vs'
+    ]);
+    function formatDisplay(text) {
+        if (!text || text === 'Unknown Artist' || text === 'Unknown Album') return text;
+        /* strip known system suffixes */
+        text = text.replace(/[_\s]+(observer|remaster(?:ed)?|mono|stereo|explicit|clean|bonus(?:[_\s]*track)?)$/i, '');
+        /* underscores → spaces, collapse whitespace */
+        text = text.replace(/_/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        /* only title-case if the text looks auto-formatted */
+        const lc = text.toLowerCase();
+        if (text === lc || text === text.toUpperCase()) {
+            text = lc.split(' ').map((w, i) => {
+                if (i > 0 && _smallWords.has(w)) return w;
+                return w.charAt(0).toUpperCase() + w.slice(1);
+            }).join(' ');
+        }
+        return text;
+    }
+
     /* Canvases */
     MoodGrid.init($('#mood-grid-canvas'));
     VUMeters.init($('#vu-canvas-left'), $('#vu-canvas-right'));
@@ -380,10 +410,17 @@
         currentTrack = await Library.getTrack(trackId);
         if (!currentTrack) return;
 
-        $('#now-playing-name').textContent   = currentTrack.name;
-        $('#now-playing-artist').textContent = currentTrack.artist;
-        $('#mini-track-name').textContent    = currentTrack.name;
-        $('#mini-track-artist').textContent  = currentTrack.artist;
+        const dispName   = formatDisplay(currentTrack.name);
+        const dispArtist = formatDisplay(currentTrack.artist);
+        const rawAlbum   = currentTrack.album;
+        const dispAlbum  = (rawAlbum && rawAlbum !== 'Unknown Album')
+            ? formatDisplay(rawAlbum) : '';
+
+        $('#now-playing-name').textContent   = dispName;
+        $('#now-playing-artist').textContent = dispArtist;
+        $('#now-playing-album').textContent  = dispAlbum;
+        $('#mini-track-name').textContent    = dispName;
+        $('#mini-track-artist').textContent  = dispArtist;
 
         /* Artwork background */
         const artBlob = await Library.getArtwork(trackId);

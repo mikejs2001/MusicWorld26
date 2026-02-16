@@ -254,7 +254,9 @@ body{
 /* Track info */
 #track-info{text-align:center;margin-bottom:30px}
 #now-playing-name{font-size:22px;font-weight:700;margin-bottom:4px}
-#now-playing-artist{font-size:14px;color:#aaa;margin-bottom:12px}
+#now-playing-artist{font-size:14px;color:#aaa;margin-bottom:4px}
+#now-playing-album{font-size:12px;color:#777;font-style:italic;margin-bottom:12px}
+#now-playing-album:empty{display:none}
 #now-playing-countdown{font-size:36px;font-weight:300;font-variant-numeric:tabular-nums;color:#00e676}
 
 /* Controls */
