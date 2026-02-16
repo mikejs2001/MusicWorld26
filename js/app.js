@@ -99,6 +99,18 @@
     await refreshGrid();
 
     /* ============================================================
+       Splash screen — tap to enter fullscreen & dismiss
+       ============================================================ */
+    const splash = $('#splash');
+    if (splash) {
+        splash.addEventListener('click', () => {
+            document.documentElement.requestFullscreen().catch(() => {});
+            splash.classList.add('hidden');
+            setTimeout(() => splash.remove(), 500);
+        }, { once: true });
+    }
+
+    /* ============================================================
        Navigation — three-dot dropdown
        ============================================================ */
     const menuDotsBtn = $('#menu-dots');
