@@ -513,6 +513,37 @@
     vuLoop();
 
     /* ============================================================
+       Orientation — strict portrait/landscape switching
+       ============================================================ */
+    function updateOrientation() {
+        const isLandscape = screen.orientation
+            ? screen.orientation.type.startsWith('landscape')
+            : window.innerWidth > window.innerHeight;
+
+        document.body.classList.toggle('landscape', isLandscape);
+        document.body.classList.toggle('playing', Player.isPlaying);
+
+        /* Resize canvases after layout settles */
+        requestAnimationFrame(() => {
+            VUMeters.resize();
+            MoodGrid.resize();
+        });
+    }
+
+    if (screen.orientation) {
+        screen.orientation.addEventListener('change', updateOrientation);
+    }
+    window.addEventListener('resize', updateOrientation);
+    updateOrientation();
+
+    /* Keep body.playing in sync whenever play state changes */
+    const _origPlayState = Player.onPlayStateChange;
+    Player.onPlayStateChange = (playing) => {
+        if (_origPlayState) _origPlayState(playing);
+        document.body.classList.toggle('playing', playing);
+    };
+
+    /* ============================================================
        Helpers
        ============================================================ */
     async function refreshGrid() {

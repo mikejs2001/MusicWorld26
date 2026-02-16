@@ -342,6 +342,87 @@ body{
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
 
+/* ===== Landscape Idle Screen ===== */
+.landscape-idle{
+    position:fixed;inset:0;z-index:250;
+    display:flex;align-items:center;justify-content:center;
+    background:#0d0d0d;color:#555;
+    font-size:18px;text-align:center;padding:20px;
+}
+.landscape-idle.hidden{display:none}
+
+/* ===== Landscape Mode ===== */
+body.landscape #menu-bar,
+body.landscape #main-content,
+body.landscape #mini-player{
+    display:none !important;
+}
+
+/* Force the player visible in landscape (override .hidden) */
+body.landscape #player{
+    transform:none !important;
+    pointer-events:auto !important;
+}
+
+/* Horizontal layout for landscape player */
+body.landscape #player-content{
+    flex-direction:row;
+    align-items:center;
+    justify-content:center;
+    gap:24px;
+    padding:12px 20px;
+}
+
+/* VU meters: large, side by side on the left */
+body.landscape #vu-meters{
+    flex-direction:row;
+    gap:12px;
+    margin-bottom:0;
+    flex-shrink:0;
+    max-width:none;
+    width:auto;
+}
+body.landscape #vu-canvas-left,
+body.landscape #vu-canvas-right{
+    max-width:none;
+    width:auto;
+}
+
+/* Track info: centred column */
+body.landscape #track-info{
+    flex:1;
+    margin-bottom:0;
+    min-width:0;
+}
+body.landscape #now-playing-name{font-size:20px}
+body.landscape #now-playing-countdown{font-size:32px}
+
+/* Controls: minimal strip on the right */
+body.landscape #player-controls{
+    flex-direction:column;
+    gap:10px;
+    flex-shrink:0;
+}
+
+/* Hide stop & minimise in landscape — only prev, play/pause, next */
+body.landscape #btn-stop,
+body.landscape #btn-minimize{
+    display:none !important;
+}
+
+/* Hide the landscape idle when player is active in landscape */
+body.landscape.playing #landscape-idle{
+    display:none !important;
+}
+
+/* Show idle when in landscape but NOT playing */
+body.landscape:not(.playing) #player{
+    display:none !important;
+}
+body.landscape:not(.playing) #landscape-idle{
+    display:flex !important;
+}
+
 /* ===== Responsive ===== */
 @media(max-width:600px){
     #mood-grid-container{width:85vw;height:85vw}
