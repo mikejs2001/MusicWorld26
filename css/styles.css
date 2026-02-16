@@ -383,26 +383,37 @@ body.landscape #player{
     pointer-events:auto !important;
 }
 
-/* Landscape player: VU meters dominate, info + controls below */
+/* Landscape player layout:
+   ┌──────────────────────────────────┐
+   │       [ VU L ]    [ VU R ]       │  ← hero, fills most height
+   ├────────────┬─────────┬───────────┤
+   │ Title      │  3:42   │ ◄ ▶ ►    │  ← compact bottom bar
+   │ Artist     │         │           │
+   └────────────┴─────────┴───────────┘
+*/
 body.landscape #player-content{
-    flex-direction:column;
+    display:grid;
+    grid-template-columns:1fr auto auto;
+    grid-template-rows:1fr auto;
     align-items:center;
-    justify-content:center;
-    gap:8px;
-    padding:8px 12px;
+    gap:0;
+    padding:8px 16px;
+    height:100%;
 }
 
-/* VU meters: hero size — fill most of the viewport */
+/* VU meters: hero — span full width, fill available height */
 body.landscape #vu-meters{
+    grid-column:1 / -1;
+    grid-row:1;
     flex-direction:row;
     gap:16px;
     margin-bottom:0;
     flex-shrink:0;
     max-width:none;
-    width:auto;
+    width:100%;
     justify-content:center;
-    flex:1;
     align-items:center;
+    align-self:stretch;
 }
 body.landscape #vu-canvas-left,
 body.landscape #vu-canvas-right{
@@ -410,30 +421,33 @@ body.landscape #vu-canvas-right{
     width:auto;
 }
 
-/* Track info: compact strip below VU meters */
+/* Track info: bottom-left — stacked column */
 body.landscape #track-info{
+    grid-column:1;
+    grid-row:2;
+    text-align:left;
     margin-bottom:0;
     min-width:0;
-    display:flex;
-    align-items:center;
-    gap:16px;
-    flex-shrink:0;
+    padding:6px 0;
 }
-body.landscape #now-playing-name{font-size:15px;margin-bottom:0}
+body.landscape #now-playing-name{font-size:15px;margin-bottom:2px}
 body.landscape #now-playing-artist{font-size:12px;margin-bottom:0}
 body.landscape #now-playing-album{font-size:11px;margin-bottom:0}
-body.landscape #now-playing-countdown{font-size:22px;margin-bottom:0}
+body.landscape #now-playing-countdown{font-size:28px;margin-top:2px}
 
-/* Controls: horizontal row at the bottom */
+/* Controls: bottom-right — horizontal row */
 body.landscape #player-controls{
+    grid-column:3;
+    grid-row:2;
     flex-direction:row;
-    gap:12px;
+    gap:10px;
     flex-shrink:0;
+    padding:6px 0;
 }
-body.landscape .ctrl-btn{width:42px;height:42px}
-body.landscape .ctrl-btn.big{width:52px;height:52px}
-body.landscape .ctrl-btn svg{width:16px;height:16px}
-body.landscape .ctrl-btn.big svg{width:22px;height:22px}
+body.landscape .ctrl-btn{width:44px;height:44px}
+body.landscape .ctrl-btn.big{width:56px;height:56px}
+body.landscape .ctrl-btn svg{width:18px;height:18px}
+body.landscape .ctrl-btn.big svg{width:24px;height:24px}
 
 /* Hide stop & minimise in landscape — only prev, play/pause, next */
 body.landscape #btn-stop,
