@@ -43,6 +43,42 @@
         return text;
     }
 
+    /* ============================================================
+       Fetch album artwork from iTunes Search API (free, no key)
+       Returns a Blob on success and caches it in IndexedDB.
+       Returns null silently on failure so the player just shows
+       a black background.
+       ============================================================ */
+    async function fetchArtwork(trackName, artistName, trackId) {
+        try {
+            const term = encodeURIComponent(`${artistName} ${trackName}`.trim());
+            const resp = await fetch(
+                `https://itunes.apple.com/search?term=${term}&media=music&entity=song&limit=1`
+            );
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            if (!data.results || !data.results.length) return null;
+
+            /* Get the highest-res artwork available (swap 100x100 → 600x600) */
+            const artUrl = data.results[0].artworkUrl100
+                ?.replace('100x100bb', '600x600bb');
+            if (!artUrl) return null;
+
+            const imgResp = await fetch(artUrl);
+            if (!imgResp.ok) return null;
+            const blob = await imgResp.blob();
+
+            /* Cache in IndexedDB so we don't re-fetch next time */
+            if (trackId) {
+                const tx = Library.db.transaction('artwork', 'readwrite');
+                tx.objectStore('artwork').put({ trackId, blob });
+            }
+            return blob;
+        } catch {
+            return null;
+        }
+    }
+
     /* Canvases */
     MoodGrid.init($('#mood-grid-canvas'));
     VUMeters.init($('#vu-canvas-left'), $('#vu-canvas-right'));
@@ -422,8 +458,11 @@
         $('#mini-track-name').textContent    = dispName;
         $('#mini-track-artist').textContent  = dispArtist;
 
-        /* Artwork background */
-        const artBlob = await Library.getArtwork(trackId);
+        /* Artwork background — try local, then fetch from iTunes */
+        let artBlob = await Library.getArtwork(trackId);
+        if (!artBlob) {
+            artBlob = await fetchArtwork(dispName, dispArtist, trackId);
+        }
         if (artBlob) {
             const url = URL.createObjectURL(artBlob);
             $('#player-bg').style.backgroundImage = `url(${url})`;
