@@ -497,9 +497,11 @@
         }
         if (artBlob) {
             const url = URL.createObjectURL(artBlob);
-            $('#player-bg').style.backgroundImage = `url(${url})`;
+            $('#player-bg-fill').style.backgroundImage = `url(${url})`;
+            $('#player-bg-art').style.backgroundImage  = `url(${url})`;
         } else {
-            $('#player-bg').style.backgroundImage = 'none';
+            $('#player-bg-fill').style.backgroundImage = 'none';
+            $('#player-bg-art').style.backgroundImage  = 'none';
         }
         applyBgStyle();
     };
