@@ -75,24 +75,51 @@ const VUMeters = {
     resize() {
         const landscape = document.body.classList.contains('landscape');
         const isNeedle = (this.style === 'needle' || this.style === 'warm' || this.style === 'blue');
-        [this.leftCanvas, this.rightCanvas].forEach(c => {
-            const parent = c.parentElement;
+        const isSpectrum = this.style === 'spectrum';
+
+        if (isSpectrum) {
+            /* Spectrum: single canvas spanning full width */
+            const parent = this.leftCanvas.parentElement;
             let w;
             if (landscape) {
                 const maxH = Math.floor(window.innerHeight * 0.75);
-                const hRatio = isNeedle ? 0.75 : 0.8;
-                w = Math.floor(maxH / hRatio);
-                w = Math.min(w, Math.floor(window.innerWidth / 2 - 20));
+                w = Math.floor(maxH / 0.8);
+                w = Math.min(w, Math.floor(window.innerWidth - 40));
             } else {
-                w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
+                w = Math.floor(Math.min(500, parent.clientWidth - 20));
             }
-            const h = isNeedle ? Math.floor(w * 0.75) : Math.floor(w * 0.8);
+            const h = Math.floor(w * 0.4);
             const dpr = window.devicePixelRatio;
-            c.width  = w * dpr;
-            c.height = h * dpr;
-            c.style.width  = w + 'px';
-            c.style.height = h + 'px';
-        });
+            this.leftCanvas.width  = w * dpr;
+            this.leftCanvas.height = h * dpr;
+            this.leftCanvas.style.width  = w + 'px';
+            this.leftCanvas.style.height = h + 'px';
+            this.leftCanvas.style.maxWidth = w + 'px';
+            this.leftCanvas.style.display = '';
+            this.rightCanvas.style.display = 'none';
+        } else {
+            this.leftCanvas.style.display = '';
+            this.rightCanvas.style.display = '';
+            this.leftCanvas.style.maxWidth = '';
+            [this.leftCanvas, this.rightCanvas].forEach(c => {
+                const parent = c.parentElement;
+                let w;
+                if (landscape) {
+                    const maxH = Math.floor(window.innerHeight * 0.75);
+                    const hRatio = isNeedle ? 0.75 : 0.8;
+                    w = Math.floor(maxH / hRatio);
+                    w = Math.min(w, Math.floor(window.innerWidth / 2 - 20));
+                } else {
+                    w = Math.floor(Math.min(240, parent.clientWidth / 2 - 10));
+                }
+                const h = isNeedle ? Math.floor(w * 0.75) : Math.floor(w * 0.8);
+                const dpr = window.devicePixelRatio;
+                c.width  = w * dpr;
+                c.height = h * dpr;
+                c.style.width  = w + 'px';
+                c.style.height = h + 'px';
+            });
+        }
     },
 
     setStyle(s) { this.style = s; this.resize(); },
@@ -147,6 +174,15 @@ const VUMeters = {
     },
 
     draw() {
+        if (this.style === 'spectrum') {
+            /* Spectrum uses a single full-width canvas */
+            const ctx = this.leftCanvas.getContext('2d');
+            const w = this.leftCanvas.width, h = this.leftCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            this._drawSpectrum(ctx, w, h);
+            return;
+        }
+
         const levels = [this.lL, this.lR];
         const peaks  = [this.pL, this.pR];
         const canvases = [this.leftCanvas, this.rightCanvas];
@@ -163,7 +199,6 @@ const VUMeters = {
                 case 'blue':    this._drawNeedleMeter(ctx, w, h, levels[i], peaks[i], labels[i], this._THEMES.blue);   break;
                 case 'lcd':     this._drawLCD(ctx, w, h, levels[i], peaks[i], labels[i]); break;
                 case 'led':     this._drawLED(ctx, w, h, levels[i], peaks[i], labels[i]); break;
-                case 'spectrum': this._drawSpectrum(ctx, w, h, i, labels[i]); break;
             }
         });
     },
@@ -501,19 +536,17 @@ const VUMeters = {
     },
 
     /* ================ SPECTRUM ANALYSER ================ */
-    _drawSpectrum(ctx, w, h, canvasIdx, label) {
+    _drawSpectrum(ctx, w, h) {
         const dpr = window.devicePixelRatio;
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, w, h);
 
-        const pad = 8 * dpr;
+        const pad = 10 * dpr;
         const labelH = 16 * dpr;
         const bands = this._specBands;
         if (!bands) return;
 
-        const half = bands.length / 2;
-        const startBand = canvasIdx === 0 ? 0 : half;
-        const numBars = half;
+        const numBars = bands.length;
         const gap = 2 * dpr;
         const barW = (w - 2 * pad - (numBars - 1) * gap) / numBars;
         const maxH = h - 2 * pad - labelH;
@@ -524,14 +557,13 @@ const VUMeters = {
         const hzPerBin = sampleRate / (binCount * 2);
         const binsPerBand = Math.floor(binCount / bands.length);
 
-        ctx.font = `${6 * dpr}px sans-serif`;
+        ctx.font = `${7 * dpr}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.fillStyle = '#444';
 
         for (let i = 0; i < numBars; i++) {
-            const bandIdx = startBand + i;
             const x = pad + i * (barW + gap);
-            const val = Math.min(1, bands[bandIdx] * 1.4);
+            const val = Math.min(1, bands[i] * 1.4);
             const barH = val * maxH;
             const y = pad + maxH - barH;
 
@@ -556,7 +588,7 @@ const VUMeters = {
             }
 
             /* Peak marker */
-            const peakVal = Math.min(1, (this._specPeaks[bandIdx] || 0) * 1.4);
+            const peakVal = Math.min(1, (this._specPeaks[i] || 0) * 1.4);
             if (peakVal > 0.02) {
                 const peakY = pad + maxH - peakVal * maxH;
                 ctx.fillStyle = '#fff';
@@ -565,18 +597,20 @@ const VUMeters = {
 
             /* Freq label (every 4th bar) */
             if (i % 4 === 0) {
-                const freqHz = (bandIdx * binsPerBand + binsPerBand / 2) * hzPerBin;
+                const freqHz = (i * binsPerBand + binsPerBand / 2) * hzPerBin;
                 const freqLabel = freqHz >= 1000 ? `${(freqHz / 1000).toFixed(1)}k` : `${Math.round(freqHz)}`;
                 ctx.fillStyle = '#444';
-                ctx.fillText(freqLabel, x + barW / 2, h - pad + 1 * dpr);
+                ctx.fillText(freqLabel, x + barW / 2, h - pad + 2 * dpr);
             }
         }
 
-        /* Channel label */
+        /* Channel labels */
         ctx.fillStyle = '#555';
         ctx.font = `bold ${9 * dpr}px sans-serif`;
-        ctx.textAlign = canvasIdx === 0 ? 'left' : 'right';
-        ctx.fillText(label, canvasIdx === 0 ? pad : w - pad, h - 2 * dpr);
+        ctx.textAlign = 'left';
+        ctx.fillText('L', pad, h - 2 * dpr);
+        ctx.textAlign = 'right';
+        ctx.fillText('R', w - pad, h - 2 * dpr);
     },
 
     /* Static preview spectrum for the settings picker */
