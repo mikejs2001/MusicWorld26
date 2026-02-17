@@ -1,9 +1,10 @@
 /**
  * Audio player using Web Audio API.
  * Provides playback controls and analyser nodes for VU meters.
+ * Loads audio from IndexedDB-stored blobs.
  */
 
-import { getFileFromHandle } from '../import/importer.js';
+import { getStoredAudioBlob } from '../db/store.js';
 
 export class AudioPlayer {
   constructor() {
@@ -15,7 +16,6 @@ export class AudioPlayer {
     this.splitter = null;
 
     this.audioElement = new Audio();
-    this.audioElement.crossOrigin = 'anonymous';
 
     this.currentTrack = null;
     this.isPlaying = false;
@@ -23,10 +23,10 @@ export class AudioPlayer {
     this.currentTime = 0;
 
     // Callbacks
-    this.onStateChange = null; // (isPlaying) => void
-    this.onTimeUpdate = null; // (currentTime, duration) => void
-    this.onTrackEnd = null; // () => void
-    this.onError = null; // (error) => void
+    this.onStateChange = null;
+    this.onTimeUpdate = null;
+    this.onTrackEnd = null;
+    this.onError = null;
 
     this._setupAudioElement();
   }
@@ -35,7 +35,6 @@ export class AudioPlayer {
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
 
-      // Create analyser nodes for left and right channels
       this.analyserLeft = this.audioContext.createAnalyser();
       this.analyserLeft.fftSize = 256;
       this.analyserLeft.smoothingTimeConstant = 0.8;
@@ -47,13 +46,11 @@ export class AudioPlayer {
       this.gainNode = this.audioContext.createGain();
       this.splitter = this.audioContext.createChannelSplitter(2);
 
-      // Connect: source → gain → splitter → analysers → destination
       this.gainNode.connect(this.splitter);
       this.splitter.connect(this.analyserLeft, 0);
       this.splitter.connect(this.analyserRight, 1);
       this.gainNode.connect(this.audioContext.destination);
 
-      // Connect audio element
       this.sourceNode = this.audioContext.createMediaElementSource(this.audioElement);
       this.sourceNode.connect(this.gainNode);
     }
@@ -93,21 +90,21 @@ export class AudioPlayer {
   }
 
   /**
-   * Load a track for playback.
-   * @param {object} track - Track object with fileHandle
+   * Load a track for playback from IndexedDB blob.
    */
   async loadTrack(track) {
     this._ensureContext();
 
-    // Revoke previous object URL
     if (this._objectUrl) {
       URL.revokeObjectURL(this._objectUrl);
       this._objectUrl = null;
     }
 
     try {
-      const file = await getFileFromHandle(track.fileHandle);
-      this._objectUrl = URL.createObjectURL(file);
+      const blob = await getStoredAudioBlob(track.id);
+      if (!blob) throw new Error('Audio data not found. Try re-importing this track.');
+
+      this._objectUrl = URL.createObjectURL(blob);
       this.audioElement.src = this._objectUrl;
       this.currentTrack = track;
       this.audioElement.load();

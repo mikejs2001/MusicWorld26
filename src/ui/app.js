@@ -3,7 +3,7 @@
  */
 
 import { openDB, getAllTracks, clearAllTracks, getPreference, setPreference } from '../db/store.js';
-import { importFromFolder } from '../import/importer.js';
+import { importFiles } from '../import/importer.js';
 import { analyzeAllUnanalyzed, reanalyzeAll } from '../analysis/analyzer.js';
 import { MoodGrid } from '../grid/moodGrid.js';
 import { PlaylistManager } from '../playlist/playlist.js';
@@ -33,7 +33,6 @@ export class App {
     this._initSettings();
     this._loadSettings();
 
-    // Load existing library
     await this._refreshLibrary();
   }
 
@@ -46,7 +45,6 @@ export class App {
     this.moodGrid.setTracks(analyzed);
     this.playlist.setTracks(analyzed);
 
-    // Toggle empty state
     const emptyState = document.getElementById('empty-state');
     const gridContainer = document.getElementById('grid-container');
     if (analyzed.length === 0) {
@@ -62,19 +60,26 @@ export class App {
 
   async _startImport() {
     this._closeAllOverlays();
-    const overlay = document.getElementById('import-overlay');
-    overlay.classList.remove('hidden');
-
-    const statusEl = document.getElementById('import-status');
-    const fillEl = document.getElementById('import-progress-fill');
-    const detailEl = document.getElementById('import-detail');
 
     this._importAbort = new AbortController();
 
+    // The file picker opens immediately — overlay shows after files are selected
+    let filesSelected = false;
+
     try {
-      const imported = await importFromFolder((progress) => {
+      const imported = await importFiles((progress) => {
+        // Show overlay once files are actually being imported
+        if (!filesSelected && progress.phase === 'importing') {
+          filesSelected = true;
+          document.getElementById('import-overlay').classList.remove('hidden');
+        }
+
+        const statusEl = document.getElementById('import-status');
+        const fillEl = document.getElementById('import-progress-fill');
+        const detailEl = document.getElementById('import-detail');
+
         if (progress.phase === 'scanning') {
-          statusEl.textContent = 'Scanning folder...';
+          statusEl.textContent = `Found ${progress.total} audio files...`;
           fillEl.style.width = '0%';
           detailEl.textContent = '';
         } else if (progress.phase === 'importing') {
@@ -88,8 +93,14 @@ export class App {
         }
       }, this._importAbort.signal);
 
+      if (!filesSelected) return; // User cancelled file picker
+
+      const overlay = document.getElementById('import-overlay');
+      const statusEl = document.getElementById('import-status');
+      const fillEl = document.getElementById('import-progress-fill');
+      const detailEl = document.getElementById('import-detail');
+
       if (imported > 0) {
-        // Start analysis
         statusEl.textContent = 'Analyzing tracks...';
         fillEl.style.width = '0%';
 
@@ -108,17 +119,17 @@ export class App {
       }
 
       await this._refreshLibrary();
+
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+      }, 1500);
     } catch (err) {
       if (err.name !== 'AbortError') {
+        const statusEl = document.getElementById('import-status');
         statusEl.textContent = `Error: ${err.message}`;
         console.error('Import error:', err);
       }
     }
-
-    // Auto-close after 1.5s on success
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-    }, 1500);
   }
 
   _cancelImport() {
@@ -159,7 +170,6 @@ export class App {
     const leftCanvas = document.getElementById('vu-left');
     const rightCanvas = document.getElementById('vu-right');
 
-    // Set canvas sizes with DPR
     const dpr = window.devicePixelRatio || 1;
     for (const c of [leftCanvas, rightCanvas]) {
       c.width = 100 * dpr;
@@ -243,7 +253,6 @@ export class App {
       this._renderPlaylist();
     } catch (err) {
       console.error('Playback error:', err);
-      // Try next track
       const next = this.playlist.next();
       if (next) this._loadAndPlayTrack(next);
     }
@@ -253,7 +262,6 @@ export class App {
     document.getElementById('track-title').textContent = track.title;
     document.getElementById('track-artist').textContent = track.artist;
 
-    // Artwork
     const artworkEl = document.getElementById('artwork-img');
     if (track.artworkData) {
       const blob = new Blob([new Uint8Array(track.artworkData.data)], {
@@ -262,10 +270,8 @@ export class App {
       const url = URL.createObjectURL(blob);
       artworkEl.style.backgroundImage = `url(${url})`;
 
-      // Background artwork mode
       if (getPreference('bgMode', 'artwork') === 'artwork') {
         const gridPanel = document.getElementById('grid-panel');
-        gridPanel.style.setProperty('--artwork-url', `url(${url})`);
         gridPanel.style.backgroundImage = `url(${url})`;
         gridPanel.style.backgroundSize = 'cover';
         gridPanel.style.backgroundPosition = 'center';
@@ -287,7 +293,6 @@ export class App {
   _initPlaylist() {
     const sizeSelect = document.getElementById('playlist-size');
     sizeSelect.addEventListener('change', () => {
-      // If there's an active mood selection, regenerate
       if (this.moodGrid.selectedMood) {
         this.moodGrid.onMoodSelected(this.moodGrid.selectedMood);
       }
@@ -321,7 +326,6 @@ export class App {
       listEl.appendChild(li);
     });
 
-    // Scroll active into view
     const activeEl = listEl.querySelector('.active');
     if (activeEl) {
       activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -345,7 +349,6 @@ export class App {
       menuOverlay.classList.remove('hidden');
     });
 
-    // Close buttons
     menuOverlay.querySelector('.overlay-close').addEventListener('click', () => {
       menuOverlay.classList.add('hidden');
     });
@@ -354,8 +357,8 @@ export class App {
       if (e.target === menuOverlay) menuOverlay.classList.add('hidden');
     });
 
-    // Menu actions
     document.getElementById('menu-add-tracks').addEventListener('click', () => {
+      menuOverlay.classList.add('hidden');
       this._startImport();
     });
 
@@ -397,12 +400,10 @@ export class App {
       }
     });
 
-    // Empty state add button
     document.getElementById('empty-add-btn').addEventListener('click', () => {
       this._startImport();
     });
 
-    // Import cancel
     document.getElementById('import-cancel').addEventListener('click', () => {
       this._cancelImport();
     });
@@ -427,7 +428,6 @@ export class App {
       if (e.target === settingsOverlay) settingsOverlay.classList.add('hidden');
     });
 
-    // VU style
     document.getElementById('setting-vu-style').addEventListener('change', (e) => {
       const style = e.target.value;
       setPreference('vuStyle', style);
@@ -435,21 +435,18 @@ export class App {
       this.vuRight.setStyle(style);
     });
 
-    // Background mode
     document.getElementById('setting-bg-mode').addEventListener('change', (e) => {
       const mode = e.target.value;
       setPreference('bgMode', mode);
       this._applyBgMode(mode);
     });
 
-    // Dark mode
     document.getElementById('setting-dark-mode').addEventListener('change', (e) => {
       const dark = e.target.checked;
       setPreference('darkMode', dark);
       document.body.classList.toggle('light-mode', !dark);
     });
 
-    // Show dots
     document.getElementById('setting-show-dots').addEventListener('change', (e) => {
       const show = e.target.checked;
       setPreference('showDots', show);

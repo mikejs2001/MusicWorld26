@@ -1,10 +1,12 @@
 /**
- * IndexedDB storage for track metadata/analysis and LocalStorage for preferences.
+ * IndexedDB storage for track metadata/analysis and audio blobs.
+ * LocalStorage for UI preferences.
  */
 
 const DB_NAME = 'MusicWorld26';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const TRACKS_STORE = 'tracks';
+const BLOBS_STORE = 'audioBlobs';
 
 let dbInstance = null;
 
@@ -24,6 +26,9 @@ export async function openDB() {
         store.createIndex('valence', 'valence', { unique: false });
         store.createIndex('analyzed', 'analyzed', { unique: false });
       }
+      if (!db.objectStoreNames.contains(BLOBS_STORE)) {
+        db.createObjectStore(BLOBS_STORE, { keyPath: 'id' });
+      }
     };
 
     request.onsuccess = (event) => {
@@ -37,10 +42,6 @@ export async function openDB() {
   });
 }
 
-function txStore(mode) {
-  return dbInstance.transaction(TRACKS_STORE, mode).objectStore(TRACKS_STORE);
-}
-
 function promisifyRequest(request) {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -48,21 +49,23 @@ function promisifyRequest(request) {
   });
 }
 
+// --- Tracks Store ---
+
 export async function addTrack(track) {
   const db = await openDB();
-  const store = txStore('readwrite');
+  const store = db.transaction(TRACKS_STORE, 'readwrite').objectStore(TRACKS_STORE);
   return promisifyRequest(store.put(track));
 }
 
 export async function getTrack(id) {
   const db = await openDB();
-  const store = txStore('readonly');
+  const store = db.transaction(TRACKS_STORE, 'readonly').objectStore(TRACKS_STORE);
   return promisifyRequest(store.get(id));
 }
 
 export async function getAllTracks() {
   const db = await openDB();
-  const store = txStore('readonly');
+  const store = db.transaction(TRACKS_STORE, 'readonly').objectStore(TRACKS_STORE);
   return promisifyRequest(store.getAll());
 }
 
@@ -70,31 +73,54 @@ export async function updateTrack(id, data) {
   const existing = await getTrack(id);
   if (!existing) throw new Error(`Track not found: ${id}`);
   const updated = { ...existing, ...data };
-  const store = txStore('readwrite');
+  const db = await openDB();
+  const store = db.transaction(TRACKS_STORE, 'readwrite').objectStore(TRACKS_STORE);
   return promisifyRequest(store.put(updated));
 }
 
 export async function deleteTrack(id) {
   const db = await openDB();
-  const store = txStore('readwrite');
-  return promisifyRequest(store.delete(id));
+  const tx = db.transaction([TRACKS_STORE, BLOBS_STORE], 'readwrite');
+  tx.objectStore(TRACKS_STORE).delete(id);
+  tx.objectStore(BLOBS_STORE).delete(id);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export async function clearAllTracks() {
   const db = await openDB();
-  const store = txStore('readwrite');
-  return promisifyRequest(store.clear());
-}
-
-export async function getUnanalyzedTracks() {
-  const tracks = await getAllTracks();
-  return tracks.filter((t) => !t.analyzed);
+  const tx = db.transaction([TRACKS_STORE, BLOBS_STORE], 'readwrite');
+  tx.objectStore(TRACKS_STORE).clear();
+  tx.objectStore(BLOBS_STORE).clear();
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export async function getTrackCount() {
   const db = await openDB();
-  const store = txStore('readonly');
+  const store = db.transaction(TRACKS_STORE, 'readonly').objectStore(TRACKS_STORE);
   return promisifyRequest(store.count());
+}
+
+// --- Audio Blob Store ---
+
+export async function storeAudioBlob(trackId, fileOrBlob) {
+  const db = await openDB();
+  const store = db.transaction(BLOBS_STORE, 'readwrite').objectStore(BLOBS_STORE);
+  // Store as Blob for efficient IndexedDB storage (browsers handle blobs natively)
+  const blob = fileOrBlob instanceof Blob ? fileOrBlob : new Blob([fileOrBlob]);
+  return promisifyRequest(store.put({ id: trackId, blob, type: blob.type }));
+}
+
+export async function getStoredAudioBlob(trackId) {
+  const db = await openDB();
+  const store = db.transaction(BLOBS_STORE, 'readonly').objectStore(BLOBS_STORE);
+  const record = await promisifyRequest(store.get(trackId));
+  return record ? record.blob : null;
 }
 
 // --- LocalStorage Preferences ---
@@ -115,7 +141,7 @@ export function setPreference(key, value) {
   try {
     localStorage.setItem(PREFS_PREFIX + key, JSON.stringify(value));
   } catch {
-    // localStorage full or unavailable — silently fail
+    // localStorage full or unavailable
   }
 }
 

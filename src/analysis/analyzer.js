@@ -3,8 +3,7 @@
  * All processing is deterministic and repeatable.
  */
 
-import { getTrack, updateTrack, getAllTracks } from '../db/store.js';
-import { getFileFromHandle } from '../import/importer.js';
+import { getTrack, updateTrack, getAllTracks, getStoredAudioBlob } from '../db/store.js';
 
 // --- FFT Implementation (radix-2 Cooley-Tukey) ---
 
@@ -418,12 +417,16 @@ async function decodeAudioFile(file) {
  */
 export async function analyzeTrack(trackId) {
   const track = await getTrack(trackId);
-  if (!track || !track.fileHandle) {
-    throw new Error(`Track not found or no file handle: ${trackId}`);
+  if (!track) {
+    throw new Error(`Track not found: ${trackId}`);
   }
 
-  const file = await getFileFromHandle(track.fileHandle);
-  const audioBuffer = await decodeAudioFile(file);
+  const blob = await getStoredAudioBlob(trackId);
+  if (!blob) {
+    throw new Error(`Audio data not found for track: ${trackId}`);
+  }
+
+  const audioBuffer = await decodeAudioFile(blob);
 
   // Update duration if it was missing
   const duration = audioBuffer.duration;

@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>MusicWorld26 — Mood Music Player</title>
-  <link rel="stylesheet" href="/src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/main.css" />
 </head>
 <body>
   <div id="app">
@@ -28,13 +28,13 @@
         <div id="grid-container">
           <canvas id="mood-grid"></canvas>
         </div>
-        <div id="empty-state" class="hidden">
+        <div id="empty-state">
           <p>No tracks imported yet.</p>
           <button id="empty-add-btn">Add Tracks</button>
         </div>
       </section>
 
-      <!-- Playlist sidebar -->
+      <!-- Playlist sidebar / bottom panel on mobile -->
       <aside id="playlist-panel">
         <div id="playlist-header">
           <h2>Playlist</h2>
@@ -130,7 +130,7 @@
     <div id="import-overlay" class="overlay hidden">
       <div class="overlay-content">
         <h2>Importing Tracks</h2>
-        <div id="import-status">Scanning folder...</div>
+        <div id="import-status">Scanning...</div>
         <div id="import-progress-bar">
           <div id="import-progress-fill"></div>
         </div>
@@ -140,6 +140,6 @@
     </div>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

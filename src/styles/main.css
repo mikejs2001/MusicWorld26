@@ -609,3 +609,125 @@ body.bg-gradient #grid-panel {
 .hidden {
   display: none !important;
 }
+
+/* === Mobile Responsive (< 768px) === */
+@media (max-width: 768px) {
+  #main-content {
+    flex-direction: column;
+  }
+
+  #grid-panel {
+    flex: none;
+    padding: 12px;
+    min-height: 0;
+    /* Use available height minus other elements */
+    height: calc(100vh - 48px - 90px - 200px);
+  }
+
+  #grid-container {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  #grid-labels span {
+    font-size: 9px;
+  }
+
+  #playlist-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex: 1;
+    min-height: 120px;
+    max-height: 200px;
+  }
+
+  #playlist-header {
+    padding: 8px 12px;
+  }
+
+  #playlist-tracks li {
+    padding: 6px 12px;
+  }
+
+  /* Player bar - compact for mobile */
+  #player-bar {
+    height: auto;
+    min-height: 80px;
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  #player-artwork {
+    width: 48px;
+    height: 48px;
+  }
+
+  #player-center {
+    gap: 2px;
+  }
+
+  #player-info {
+    font-size: 12px;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+  }
+
+  #player-controls {
+    gap: 12px;
+  }
+
+  .ctrl-btn.play-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+
+  #seek-row {
+    max-width: none;
+  }
+
+  /* Hide VU meters on very small screens to save space */
+  #player-meters {
+    display: none;
+  }
+
+  /* Overlays */
+  .overlay-content {
+    min-width: auto;
+    max-width: calc(100vw - 32px);
+    margin: 16px;
+  }
+
+  #empty-add-btn {
+    padding: 12px 32px;
+    font-size: 16px;
+  }
+}
+
+/* Show VU meters on medium mobile screens (landscape) */
+@media (max-width: 768px) and (min-width: 600px) {
+  #player-meters {
+    display: flex;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 400px) {
+  #top-bar h1 {
+    font-size: 14px;
+  }
+
+  #grid-panel {
+    padding: 8px;
+    height: calc(100vh - 48px - 80px - 160px);
+  }
+
+  #playlist-panel {
+    max-height: 160px;
+  }
+}
