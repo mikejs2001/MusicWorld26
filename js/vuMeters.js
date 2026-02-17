@@ -5,8 +5,9 @@ const VUMeters = {
     rightCanvas: null,
     style: 'needle',       // 'needle' | 'lcd' | 'led'
 
-    /* smoothed levels & peak hold */
+    /* smoothed levels, needle velocities & peak hold */
     lL: 0, lR: 0,
+    vL: 0, vR: 0,
     pL: 0, pR: 0,
 
     init(leftCanvas, rightCanvas) {
@@ -46,9 +47,20 @@ const VUMeters = {
     setStyle(s) { this.style = s; this.resize(); },
 
     update(leftLevel, rightLevel) {
-        /* Smoothing */
-        this.lL += (leftLevel  - this.lL) * 0.65;
-        this.lR += (rightLevel - this.lR) * 0.65;
+        /* Spring-damper ballistics — models real VU needle inertia.
+           The needle overshoots on transients then settles, just like
+           a physical meter movement with ~300ms integration time. */
+        const k = 0.08;     // spring stiffness
+        const d = 0.42;     // damping (underdamped → overshoot)
+
+        this.vL += k * (leftLevel - this.lL) - d * this.vL;
+        this.lL += this.vL;
+        this.lL = Math.max(0, this.lL);
+
+        this.vR += k * (rightLevel - this.lR) - d * this.vR;
+        this.lR += this.vR;
+        this.lR = Math.max(0, this.lR);
+
         /* Peak hold with slow decay */
         if (leftLevel  > this.pL) this.pL = leftLevel;  else this.pL *= 0.993;
         if (rightLevel > this.pR) this.pR = rightLevel;  else this.pR *= 0.993;
@@ -76,61 +88,68 @@ const VUMeters = {
     /* ================ NEEDLE ================ */
     _drawNeedle(ctx, w, h, level, peak, label) {
         const dpr = window.devicePixelRatio;
-
-        /* Meter face */
         const m = 8 * dpr;
-        ctx.fillStyle = '#2a2a2a';
+
+        /* ── Outer bezel — dark metallic frame ── */
+        ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, w, h);
-        this._roundRect(ctx, m, m, w - 2 * m, h - 2 * m, 6 * dpr, '#f5f0e0');
+
+        /* Metallic bevel (top edge catches light, bottom stays dark) */
+        const bevelG = ctx.createLinearGradient(0, 0, 0, h);
+        bevelG.addColorStop(0, '#3a3a3a');
+        bevelG.addColorStop(0.04, '#2a2a2a');
+        bevelG.addColorStop(0.96, '#1a1a1a');
+        bevelG.addColorStop(1, '#2e2e2e');
+        this._roundRect(ctx, 2 * dpr, 2 * dpr, w - 4 * dpr, h - 4 * dpr, 6 * dpr, bevelG);
+
+        /* ── Face plate — warm aged cream with gradient ── */
+        const faceX = m, faceY = m, faceW = w - 2 * m, faceH = h - 2 * m;
+        const faceG = ctx.createLinearGradient(faceX, faceY, faceX, faceY + faceH);
+        faceG.addColorStop(0, '#f7f2e2');
+        faceG.addColorStop(0.35, '#f0ebd8');
+        faceG.addColorStop(1, '#e6dfca');
+        this._roundRect(ctx, faceX, faceY, faceW, faceH, 4 * dpr, faceG);
 
         /* Pivot at bottom-centre of face */
         const cx = w / 2;
-        const cy = h - m - 10 * dpr;
+        const cy = h - m - 12 * dpr;
 
         /* Radius — fill as much of the face as possible, leaving room for labels */
         const r = Math.min(
-            (w - 2 * m) / 2 - 6 * dpr,
-            cy - m - 30 * dpr
+            (w - 2 * m) / 2 - 8 * dpr,
+            cy - m - 32 * dpr
         );
 
-        /*
-         * All positions use "degrees from straight up":
-         *   -60 = far left,  0 = straight up,  +60 = far right
-         *
-         * Convert to canvas x,y:
-         *   x = cx + sin(deg) * radius   (sin gives horizontal offset)
-         *   y = cy - cos(deg) * radius   (cos gives upward offset)
-         */
         const toRad = Math.PI / 180;
         const tipXY = (deg, rad) => [
             cx + Math.sin(deg * toRad) * rad,
             cy - Math.cos(deg * toRad) * rad
         ];
 
-        const sweep = 55;                               // half-sweep in degrees
+        const sweep = 55;
 
-        /* Scale arc */
+        /* ── Scale arc ── */
         ctx.beginPath();
         for (let d = -sweep; d <= sweep; d += 1) {
             const [x, y] = tipXY(d, r);
-            if (d === -sweep) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            d === -sweep ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1.5 * dpr;
+        ctx.strokeStyle = '#777';
+        ctx.lineWidth = 1 * dpr;
         ctx.stroke();
 
-        /* Red zone arc (last 30 %) — drawn BELOW the scale arc, toward pivot */
+        /* ── Red zone arc (last 30 %) ── */
         ctx.beginPath();
         const redStart = -sweep + 2 * sweep * 0.7;
         for (let d = redStart; d <= sweep; d += 1) {
             const [x, y] = tipXY(d, r - 4 * dpr);
-            if (d <= redStart + 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            d <= redStart + 1 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
         ctx.strokeStyle = '#c00';
         ctx.lineWidth = 3 * dpr;
         ctx.stroke();
 
-        /* Tick marks & dB labels — drawn OUTSIDE (above) the arc */
+        /* ── Tick marks & dB labels ── */
         const ticks = [-20, -10, -7, -5, -3, -1, 0, 1, 2, 3];
         ticks.forEach((db, j) => {
             const frac = j / (ticks.length - 1);
@@ -138,59 +157,146 @@ const VUMeters = {
             const red  = db >= 1;
             const major = (j % 2 === 0);
 
-            /* Ticks extend outward (away from pivot) from the arc line */
             const [ix, iy] = tipXY(deg, r);
             const [ox, oy] = tipXY(deg, r + (major ? 10 : 6) * dpr);
 
             ctx.beginPath();
             ctx.moveTo(ix, iy);
             ctx.lineTo(ox, oy);
-            ctx.strokeStyle = red ? '#c00' : '#222';
-            ctx.lineWidth = (major ? 2.5 : 1.5) * dpr;
+            ctx.strokeStyle = red ? '#c00' : '#333';
+            ctx.lineWidth = (major ? 2 : 1.2) * dpr;
             ctx.stroke();
 
-            /* dB number above each major tick */
             if (major) {
                 const [lx, ly] = tipXY(deg, r + 18 * dpr);
-                ctx.fillStyle = red ? '#c00' : '#222';
-                ctx.font = `bold ${10 * dpr}px sans-serif`;
+                ctx.fillStyle = red ? '#c00' : '#333';
+                ctx.font = `bold ${9 * dpr}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(String(db), lx, ly);
             }
         });
 
-        /* Needle */
-        const clamped  = Math.min(1, Math.max(0, level));
+        /* ── Needle with drop shadow ── */
+        const clamped = Math.min(1.15, Math.max(0, level));
         const needleDeg = -sweep + 2 * sweep * clamped;
-        const [nx, ny] = tipXY(needleDeg, r - 4 * dpr);
+        const [nx, ny] = tipXY(needleDeg, r - 2 * dpr);
+
+        /* Shadow layer (offset down-right) */
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 4 * dpr;
+        ctx.shadowOffsetX = 2 * dpr;
+        ctx.shadowOffsetY = 2 * dpr;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(nx, ny);
         ctx.strokeStyle = '#111';
-        ctx.lineWidth = 2 * dpr;
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.restore();
+
+        /* Needle line itself (crisp, on top of shadow) */
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(nx, ny);
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.lineCap = 'round';
         ctx.stroke();
 
-        /* Pivot dot */
+        /* Needle tip — tiny red arrowhead */
+        const tipLen = 6 * dpr;
+        const tipW   = 2.5 * dpr;
+        const [t1x, t1y] = tipXY(needleDeg, r - 2 * dpr);
+        const [t2x, t2y] = tipXY(needleDeg, r - 2 * dpr - tipLen);
+        const perpX = -(t1y - t2y);
+        const perpY =  (t1x - t2x);
+        const pLen  = Math.sqrt(perpX * perpX + perpY * perpY) || 1;
         ctx.beginPath();
-        ctx.arc(cx, cy, 3.5 * dpr, 0, Math.PI * 2);
-        ctx.fillStyle = '#333';
+        ctx.moveTo(t1x, t1y);
+        ctx.lineTo(t2x + perpX / pLen * tipW, t2y + perpY / pLen * tipW);
+        ctx.lineTo(t2x - perpX / pLen * tipW, t2y - perpY / pLen * tipW);
+        ctx.closePath();
+        ctx.fillStyle = '#c00';
         ctx.fill();
 
-        /* Text labels */
+        /* ── Pivot — metallic gradient ── */
+        const pivG = ctx.createRadialGradient(
+            cx - dpr, cy - dpr, 0,
+            cx, cy, 5 * dpr
+        );
+        pivG.addColorStop(0, '#888');
+        pivG.addColorStop(0.4, '#555');
+        pivG.addColorStop(1, '#222');
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4.5 * dpr, 0, Math.PI * 2);
+        ctx.fillStyle = pivG;
+        ctx.fill();
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 0.5 * dpr;
+        ctx.stroke();
+
+        /* ── Text labels ── */
         ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#666';
         ctx.font = `bold ${10 * dpr}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText(label, cx, h - 2 * dpr);
+        ctx.fillText(label, cx, h - 3 * dpr);
         ctx.fillStyle = '#444';
         ctx.font = `bold ${9 * dpr}px sans-serif`;
         ctx.fillText('VU', cx, m + 14 * dpr);
 
-        /* Border */
+        /* ── Glass reflection — subtle elliptical highlight ── */
+        ctx.save();
+        ctx.globalAlpha = 0.07;
+        ctx.beginPath();
+        ctx.ellipse(
+            faceX + faceW * 0.35, faceY + faceH * 0.22,
+            faceW * 0.28, faceH * 0.15,
+            -0.3, 0, Math.PI * 2
+        );
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.restore();
+
+        /* ── Face border ── */
         ctx.strokeStyle = '#444';
         ctx.lineWidth = 1.5 * dpr;
-        this._strokeRoundRect(ctx, m, m, w - 2 * m, h - 2 * m, 6 * dpr);
+        this._strokeRoundRect(ctx, faceX, faceY, faceW, faceH, 4 * dpr);
+
+        /* Inner edge highlight for depth */
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 0.5 * dpr;
+        this._strokeRoundRect(ctx, faceX + dpr, faceY + dpr, faceW - 2 * dpr, faceH - 2 * dpr, 3 * dpr);
+
+        /* ── Corner screws ── */
+        const screwR = 2.5 * dpr;
+        const screwOff = m + 6 * dpr;
+        const screws = [
+            [screwOff, screwOff],
+            [w - screwOff, screwOff],
+            [screwOff, h - screwOff],
+            [w - screwOff, h - screwOff]
+        ];
+        screws.forEach(([sx, sy]) => {
+            const sg = ctx.createRadialGradient(sx - 0.5 * dpr, sy - 0.5 * dpr, 0, sx, sy, screwR);
+            sg.addColorStop(0, '#aaa');
+            sg.addColorStop(0.6, '#666');
+            sg.addColorStop(1, '#333');
+            ctx.beginPath();
+            ctx.arc(sx, sy, screwR, 0, Math.PI * 2);
+            ctx.fillStyle = sg;
+            ctx.fill();
+            /* Slot */
+            ctx.beginPath();
+            ctx.moveTo(sx - screwR * 0.6, sy);
+            ctx.lineTo(sx + screwR * 0.6, sy);
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 0.8 * dpr;
+            ctx.stroke();
+        });
     },
 
     /* ================ LCD (monochrome old-LCD style) ================ */
@@ -254,6 +360,12 @@ const VUMeters = {
             ctx.fillRect(x, baseY, barW, barH);
         }
 
+        /* ── Scanline overlay — CRT-era LCD pixel grid ── */
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        for (let sy = bz; sy < h - bz; sy += 2 * dpr) {
+            ctx.fillRect(bz, sy, w - 2 * bz, dpr * 0.6);
+        }
+
         /* Channel label & "dB" text */
         ctx.fillStyle = ink;
         ctx.font = `bold ${9 * dpr}px sans-serif`;
@@ -308,11 +420,31 @@ const VUMeters = {
             else if (frac < 0.8) { onColor = '#ffea00'; offColor = '#1a1a0a'; }
             else                 { onColor = '#ff1744'; offColor = '#1a0a0a'; }
 
-            ctx.fillStyle = active ? onColor : (isPeak ? onColor : offColor);
+            const rr = Math.min(ledH / 2, 3 * dpr);
 
-            /* Rounded LED segments */
-            const r = Math.min(ledH / 2, 3 * dpr);
-            this._roundRect(ctx, pad, y, ledW, ledH, r, ctx.fillStyle);
+            if (active || isPeak) {
+                /* Glow/bloom — draw shadow first, then crisp segment on top */
+                ctx.save();
+                ctx.shadowColor = onColor;
+                ctx.shadowBlur = 8 * dpr;
+                this._roundRect(ctx, pad, y, ledW, ledH, rr, onColor);
+                ctx.restore();
+                /* Crisp segment over the glow */
+                this._roundRect(ctx, pad, y, ledW, ledH, rr, onColor);
+                /* Specular highlight on the LED surface */
+                const hlG = ctx.createLinearGradient(pad, y, pad, y + ledH);
+                hlG.addColorStop(0, 'rgba(255,255,255,0.25)');
+                hlG.addColorStop(0.5, 'rgba(255,255,255,0)');
+                hlG.addColorStop(1, 'rgba(0,0,0,0.15)');
+                this._roundRect(ctx, pad, y, ledW, ledH, rr, hlG);
+            } else {
+                this._roundRect(ctx, pad, y, ledW, ledH, rr, offColor);
+                /* Subtle surface texture on unlit LEDs */
+                const offG = ctx.createLinearGradient(pad, y, pad, y + ledH);
+                offG.addColorStop(0, 'rgba(255,255,255,0.03)');
+                offG.addColorStop(1, 'rgba(0,0,0,0.05)');
+                this._roundRect(ctx, pad, y, ledW, ledH, rr, offG);
+            }
         }
 
         /* Label */
