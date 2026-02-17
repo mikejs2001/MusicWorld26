@@ -82,9 +82,10 @@ const VUMeters = {
             const parent = this.leftCanvas.parentElement;
             let w;
             if (landscape) {
-                const maxH = Math.floor(window.innerHeight * 0.75);
-                w = Math.floor(maxH / 0.8);
-                w = Math.min(w, Math.floor(window.innerWidth - 40));
+                w = Math.floor(window.innerWidth - 40);
+                const maxH = Math.floor(window.innerHeight * 0.65);
+                const h0 = Math.floor(w * 0.4);
+                if (h0 > maxH) w = Math.floor(maxH / 0.4);
             } else {
                 w = Math.floor(Math.min(500, parent.clientWidth - 20));
             }
