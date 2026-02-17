@@ -3,7 +3,7 @@
  */
 
 import { openDB, getAllTracks, clearAllTracks, getPreference, setPreference } from '../db/store.js';
-import { importFiles } from '../import/importer.js';
+import { importFiles, importFolder } from '../import/importer.js';
 import { analyzeAllUnanalyzed, reanalyzeAll } from '../analysis/analyzer.js';
 import { MoodGrid } from '../grid/moodGrid.js';
 import { PlaylistManager } from '../playlist/playlist.js';
@@ -58,16 +58,18 @@ export class App {
 
   // --- Import ---
 
-  async _startImport() {
+  async _startImport(mode = 'files') {
     this._closeAllOverlays();
 
     this._importAbort = new AbortController();
+
+    const importFn = mode === 'folder' ? importFolder : importFiles;
 
     // The file picker opens immediately — overlay shows after files are selected
     let filesSelected = false;
 
     try {
-      const imported = await importFiles((progress) => {
+      const imported = await importFn((progress) => {
         // Show overlay once files are actually being imported
         if (!filesSelected && progress.phase === 'importing') {
           filesSelected = true;
@@ -357,9 +359,14 @@ export class App {
       if (e.target === menuOverlay) menuOverlay.classList.add('hidden');
     });
 
-    document.getElementById('menu-add-tracks').addEventListener('click', () => {
+    document.getElementById('menu-add-files').addEventListener('click', () => {
       menuOverlay.classList.add('hidden');
-      this._startImport();
+      this._startImport('files');
+    });
+
+    document.getElementById('menu-add-folder').addEventListener('click', () => {
+      menuOverlay.classList.add('hidden');
+      this._startImport('folder');
     });
 
     document.getElementById('menu-reanalyse').addEventListener('click', async () => {

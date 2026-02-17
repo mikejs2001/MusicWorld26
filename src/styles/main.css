@@ -492,6 +492,14 @@ html, body {
   background: var(--border);
 }
 
+#menu-nav .menu-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
 #menu-clear-library {
   color: var(--danger) !important;
 }

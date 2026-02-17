@@ -204,15 +204,10 @@ async function extractMetadata(file) {
 }
 
 /**
- * Trigger a file picker and import selected audio files.
- * Uses <input type="file"> for universal browser compatibility (including Android).
- * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
- * @param {AbortSignal} signal - Optional abort signal
- * @returns {Promise<number>} Number of newly imported tracks
+ * Process an array of audio files: extract metadata and store in IndexedDB.
+ * Shared by both file and folder import flows.
  */
-export async function importFiles(onProgress, signal) {
-  // Create file input
-  const files = await pickAudioFiles();
+async function processAudioFiles(files, onProgress, signal) {
   if (!files || files.length === 0) return 0;
 
   onProgress?.({ phase: 'scanning', current: 0, total: files.length, trackName: '' });
@@ -273,19 +268,41 @@ export async function importFiles(onProgress, signal) {
 }
 
 /**
- * Open a file picker dialog for audio files. Works on Android and desktop.
+ * Pick individual audio files and import them.
+ * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
+ * @param {AbortSignal} signal - Optional abort signal
+ * @returns {Promise<number>} Number of newly imported tracks
  */
-function pickAudioFiles() {
+export async function importFiles(onProgress, signal) {
+  const files = await pickFiles(false);
+  return processAudioFiles(files, onProgress, signal);
+}
+
+/**
+ * Pick a folder and import all audio files within it (recursively).
+ * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
+ * @param {AbortSignal} signal - Optional abort signal
+ * @returns {Promise<number>} Number of newly imported tracks
+ */
+export async function importFolder(onProgress, signal) {
+  const files = await pickFiles(true);
+  return processAudioFiles(files, onProgress, signal);
+}
+
+/**
+ * Open a file picker dialog.
+ * @param {boolean} folderMode - If true, use directory picker to select entire folders.
+ */
+function pickFiles(folderMode) {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.multiple = true;
     input.accept = 'audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg,.weba';
 
-    // Also try webkitdirectory for desktop browsers that support folder selection
-    // On Android this is ignored, so it gracefully falls back to multi-file
-    if (!('ontouchstart' in window)) {
+    if (folderMode) {
       input.webkitdirectory = true;
+    } else {
+      input.multiple = true;
     }
 
     input.addEventListener('change', () => {
