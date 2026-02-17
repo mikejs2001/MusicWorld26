@@ -81,15 +81,16 @@ const VUMeters = {
             /* Spectrum: single canvas spanning full width */
             const parent = this.leftCanvas.parentElement;
             let w;
+            const ratio = landscape ? 0.55 : 0.4;
             if (landscape) {
-                w = Math.floor(window.innerWidth - 40);
-                const maxH = Math.floor(window.innerHeight * 0.65);
-                const h0 = Math.floor(w * 0.4);
-                if (h0 > maxH) w = Math.floor(maxH / 0.4);
+                w = Math.floor(window.innerWidth - 30);
+                const maxH = Math.floor(window.innerHeight * 0.78);
+                const h0 = Math.floor(w * ratio);
+                if (h0 > maxH) w = Math.floor(maxH / ratio);
             } else {
                 w = Math.floor(Math.min(500, parent.clientWidth - 20));
             }
-            const h = Math.floor(w * 0.4);
+            const h = Math.floor(w * ratio);
             const dpr = window.devicePixelRatio;
             this.leftCanvas.width  = w * dpr;
             this.leftCanvas.height = h * dpr;
