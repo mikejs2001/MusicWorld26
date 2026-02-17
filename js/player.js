@@ -132,6 +132,12 @@ const Player = {
         };
     },
 
+    /* Raw frequency bins for spectrum analyser (0-255 per bin) */
+    getFrequencyData() {
+        this.analyser.getByteFrequencyData(this.freqData);
+        return this.freqData;
+    },
+
     /* ---------- internal ---------- */
 
     _onEnded() {

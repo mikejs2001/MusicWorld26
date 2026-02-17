@@ -89,11 +89,51 @@
     VUMeters.setStyle(vuStyle);
     applyBgStyle();
 
-    /* Restore radio buttons */
-    const vuRadio = $(`input[name="vu-style"][value="${vuStyle}"]`);
-    if (vuRadio) vuRadio.checked = true;
+    /* Restore background radio */
     const bgRadio = $(`input[name="bg-style"][value="${bgStyle}"]`);
     if (bgRadio) bgRadio.checked = true;
+
+    /* Build the visual meter picker */
+    const meterStyles = [
+        { id: 'needle',   name: 'Classic' },
+        { id: 'warm',     name: 'Warm Amber' },
+        { id: 'blue',     name: 'Blue Teal' },
+        { id: 'lcd',      name: 'LCD' },
+        { id: 'led',      name: 'LED Bars' },
+        { id: 'spectrum', name: 'Spectrum' },
+    ];
+    const picker = $('#meter-picker');
+    const dpr = window.devicePixelRatio || 1;
+    meterStyles.forEach(({ id, name }) => {
+        const card = document.createElement('div');
+        card.className = 'meter-card' + (id === vuStyle ? ' active' : '');
+        card.dataset.style = id;
+
+        const cv = document.createElement('canvas');
+        const isNeedle = (id === 'needle' || id === 'warm' || id === 'blue');
+        const pw = 150, ph = isNeedle ? Math.floor(pw * 0.75) : Math.floor(pw * 0.8);
+        cv.width  = pw * dpr;
+        cv.height = ph * dpr;
+        cv.style.width  = pw + 'px';
+        cv.style.height = ph + 'px';
+        VUMeters.drawPreview(cv, id);
+
+        const lbl = document.createElement('div');
+        lbl.className = 'meter-label';
+        lbl.textContent = name;
+
+        card.appendChild(cv);
+        card.appendChild(lbl);
+        picker.appendChild(card);
+
+        card.addEventListener('click', () => {
+            picker.querySelectorAll('.meter-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            vuStyle = id;
+            localStorage.setItem('mw26_vu', id);
+            VUMeters.setStyle(id);
+        });
+    });
 
     /* Load existing library into mood grid */
     await refreshGrid();
@@ -394,14 +434,6 @@
     /* ============================================================
        Settings
        ============================================================ */
-    $$('input[name="vu-style"]').forEach(r => {
-        r.addEventListener('change', () => {
-            vuStyle = r.value;
-            localStorage.setItem('mw26_vu', vuStyle);
-            VUMeters.setStyle(vuStyle);
-        });
-    });
-
     $$('input[name="bg-style"]').forEach(r => {
         r.addEventListener('change', () => {
             bgStyle = r.value;
@@ -537,9 +569,10 @@
     function vuLoop() {
         if (Player.isPlaying) {
             const { left, right } = Player.getLevels();
-            VUMeters.update(left, right);
+            const freqData = Player.getFrequencyData();
+            VUMeters.update(left, right, freqData);
         } else {
-            VUMeters.update(0, 0);
+            VUMeters.update(0, 0, null);
         }
         VUMeters.draw();
         requestAnimationFrame(vuLoop);

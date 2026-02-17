@@ -235,6 +235,29 @@ body{
 .radio-label{font-size:13px}
 .maintenance-buttons{display:flex;gap:10px;flex-wrap:wrap}
 
+/* ===== Meter Picker (visual preview grid) ===== */
+.meter-picker{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
+    gap:10px;
+}
+.meter-card{
+    background:#111;border:2px solid #2a2a2a;border-radius:10px;
+    padding:8px;cursor:pointer;transition:.2s;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.meter-card:hover{border-color:#444;background:#161616}
+.meter-card.active{border-color:#00e676;background:#0f1f14}
+.meter-card canvas{
+    width:100%;border-radius:4px;
+    display:block;
+}
+.meter-card .meter-label{
+    font-size:12px;color:#888;font-weight:500;
+    text-align:center;
+}
+.meter-card.active .meter-label{color:#00e676}
+
 /* ===== Player Overlay ===== */
 .player{
     position:fixed;inset:0;z-index:200;
