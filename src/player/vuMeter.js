@@ -72,7 +72,11 @@ export class VUMeter {
     } else {
       this._peakDecay++;
       if (this._peakDecay > 30) {
-        this._peakLevel *= 0.97;
+        this._peakLevel *= 0.95;
+        if (this._peakLevel < 0.01) {
+          this._peakLevel = 0;
+          this._peakDecay = 0;
+        }
       }
     }
   }

@@ -51,6 +51,9 @@
             <option value="0">Continuous</option>
           </select>
         </div>
+        <div id="search-bar">
+          <input type="text" id="search-input" placeholder="Search tracks..." />
+        </div>
         <ol id="playlist-tracks"></ol>
         <div id="playlist-footer" class="hidden">
           <button id="btn-go-player">Go To Player</button>
@@ -78,14 +81,20 @@
           <canvas id="vu-right" width="100" height="80"></canvas>
         </div>
         <div id="player-controls">
+          <button id="btn-shuffle" class="ctrl-btn ctrl-mode" title="Shuffle">&#128256;</button>
           <button id="btn-prev" class="ctrl-btn" title="Previous">&#9198;</button>
           <button id="btn-play" class="ctrl-btn play-btn" title="Play">&#9654;</button>
           <button id="btn-next" class="ctrl-btn" title="Next">&#9197;</button>
+          <button id="btn-repeat" class="ctrl-btn ctrl-mode" title="Repeat">&#128257;</button>
         </div>
         <div id="seek-row">
           <span id="time-elapsed">0:00</span>
           <input type="range" id="seek-bar" min="0" max="1000" value="0" />
           <span id="time-remaining">0:00</span>
+        </div>
+        <div id="volume-row">
+          <button id="btn-mute" class="ctrl-btn ctrl-small" title="Mute">&#128266;</button>
+          <input type="range" id="volume-bar" min="0" max="100" value="100" />
         </div>
       </div>
     </div>

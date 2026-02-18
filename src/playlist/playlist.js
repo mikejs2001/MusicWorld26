@@ -10,6 +10,9 @@ export class PlaylistManager {
     this.recentlyPlayed = []; // Track IDs
     this.maxRecent = 50;
     this.continuous = false;
+    this.shuffle = false;   // 'off' or 'on'
+    this.repeat = 'off';    // 'off', 'all', 'one'
+    this._originalQueue = []; // pre-shuffle order
 
     // Callbacks
     this.onQueueChanged = null;
@@ -64,6 +67,8 @@ export class PlaylistManager {
     }
 
     this.queue = selected.map((s) => s.track);
+    this._originalQueue = [...this.queue];
+    if (this.shuffle) this._shuffleQueue();
     this.currentIndex = this.queue.length > 0 ? 0 : -1;
     this._moodPoint = moodPoint;
     this._scaling = scaling;
@@ -80,6 +85,13 @@ export class PlaylistManager {
 
   next() {
     if (this.queue.length === 0) return null;
+
+    // Repeat one: restart current track
+    if (this.repeat === 'one') {
+      this.onQueueChanged?.(this.queue, this.currentIndex);
+      this.onTrackChanged?.(this.getCurrentTrack());
+      return this.getCurrentTrack();
+    }
 
     // Add current to recently played
     const current = this.getCurrentTrack();
@@ -98,8 +110,13 @@ export class PlaylistManager {
     }
 
     if (this.currentIndex >= this.queue.length) {
-      this.currentIndex = this.queue.length - 1;
-      return null;
+      // Repeat all: loop back to start
+      if (this.repeat === 'all') {
+        this.currentIndex = 0;
+      } else {
+        this.currentIndex = this.queue.length - 1;
+        return null;
+      }
     }
 
     this.onQueueChanged?.(this.queue, this.currentIndex);
@@ -150,8 +167,43 @@ export class PlaylistManager {
     }
   }
 
+  toggleShuffle() {
+    this.shuffle = !this.shuffle;
+    if (this.queue.length === 0) return this.shuffle;
+
+    const currentTrack = this.getCurrentTrack();
+    if (this.shuffle) {
+      this._shuffleQueue();
+    } else {
+      this.queue = [...this._originalQueue];
+    }
+    // Restore position of currently playing track
+    if (currentTrack) {
+      this.currentIndex = this.queue.findIndex((t) => t.id === currentTrack.id);
+      if (this.currentIndex < 0) this.currentIndex = 0;
+    }
+    this.onQueueChanged?.(this.queue, this.currentIndex);
+    return this.shuffle;
+  }
+
+  cycleRepeat() {
+    const modes = ['off', 'all', 'one'];
+    const idx = modes.indexOf(this.repeat);
+    this.repeat = modes[(idx + 1) % modes.length];
+    return this.repeat;
+  }
+
+  _shuffleQueue() {
+    // Fisher-Yates shuffle
+    for (let i = this.queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.queue[i], this.queue[j]] = [this.queue[j], this.queue[i]];
+    }
+  }
+
   clear() {
     this.queue = [];
+    this._originalQueue = [];
     this.currentIndex = -1;
     this.onQueueChanged?.(this.queue, this.currentIndex);
   }

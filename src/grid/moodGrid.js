@@ -20,6 +20,7 @@ export class MoodGrid {
     // Selection state
     this.selectedMood = null; // { x, y } normalized 0-1
     this.hoveredTrack = null;
+    this.nowPlayingId = null; // Track ID of currently playing track
 
     // Padding ratio (fraction of canvas for the outer border)
     this.padding = 0.05;
@@ -205,6 +206,35 @@ export class MoodGrid {
           ctx.lineWidth = 2;
           ctx.stroke();
         }
+      }
+    }
+
+    // Draw now-playing indicator
+    if (this.nowPlayingId && this.showDots) {
+      const npTrack = this.tracks.find((t) => t.id === this.nowPlayingId);
+      if (npTrack) {
+        const { x, y } = this.trackToGrid(npTrack);
+        const { cx, cy } = this.moodToCanvas(x, y);
+
+        // Pulsing ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8 * dpr, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(29, 185, 84, 0.9)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 * dpr, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(29, 185, 84, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Filled center
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4 * dpr, 0, Math.PI * 2);
+        ctx.fillStyle = '#1db954';
+        ctx.fill();
       }
     }
 
