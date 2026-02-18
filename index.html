@@ -19,19 +19,25 @@
     <main id="main-content">
       <!-- Mood Grid -->
       <section id="grid-panel">
-        <div id="grid-labels">
-          <span class="label-top">Fast</span>
-          <span class="label-bottom">Slow</span>
-          <span class="label-left">Sad</span>
-          <span class="label-right">Happy</span>
+        <div id="grid-body">
+          <div id="grid-labels">
+            <span class="label-top">Fast</span>
+            <span class="label-bottom">Slow</span>
+            <span class="label-left">Sad</span>
+            <span class="label-right">Happy</span>
+          </div>
+          <div id="grid-container">
+            <canvas id="mood-grid"></canvas>
+          </div>
+          <div id="empty-state">
+            <p>No tracks imported yet.</p>
+            <button id="empty-add-btn">Add Album</button>
+          </div>
         </div>
-        <div id="grid-container">
-          <canvas id="mood-grid"></canvas>
-        </div>
-        <div id="empty-state">
-          <p>No tracks imported yet.</p>
-          <button id="empty-add-btn">Add Album</button>
-        </div>
+        <button id="grid-toggle" title="Toggle mood grid">
+          <span id="grid-toggle-label">Mood Grid</span>
+          <span id="grid-toggle-arrow">&#9660;</span>
+        </button>
       </section>
 
       <!-- Playlist sidebar / bottom panel on mobile -->

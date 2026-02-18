@@ -26,6 +26,7 @@ export class App {
     await openDB();
 
     this._initMoodGrid();
+    this._initGridToggle();
     this._initVUMeters();
     this._initPlayerControls();
     this._initPlaylist();
@@ -169,6 +170,28 @@ export class App {
         document.getElementById('playlist-footer').classList.remove('hidden');
       }
     };
+  }
+
+  // --- Grid Toggle ---
+
+  _initGridToggle() {
+    const gridPanel = document.getElementById('grid-panel');
+    const toggleBtn = document.getElementById('grid-toggle');
+
+    // Restore saved state
+    const collapsed = getPreference('gridCollapsed', false);
+    if (collapsed) gridPanel.classList.add('collapsed');
+
+    toggleBtn.addEventListener('click', () => {
+      gridPanel.classList.toggle('collapsed');
+      const isCollapsed = gridPanel.classList.contains('collapsed');
+      setPreference('gridCollapsed', isCollapsed);
+
+      // Re-render grid when expanding (canvas may need resize)
+      if (!isCollapsed) {
+        setTimeout(() => this.moodGrid.render(), 50);
+      }
+    });
   }
 
   // --- VU Meters ---
