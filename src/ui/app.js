@@ -3,7 +3,7 @@
  */
 
 import { openDB, getAllTracks, clearAllTracks, getPreference, setPreference } from '../db/store.js';
-import { importFiles, importFolder } from '../import/importer.js';
+import { importFolder } from '../import/importer.js';
 import { analyzeAllUnanalyzed, reanalyzeAll } from '../analysis/analyzer.js';
 import { MoodGrid } from '../grid/moodGrid.js';
 import { PlaylistManager } from '../playlist/playlist.js';
@@ -58,27 +58,29 @@ export class App {
 
   // --- Import ---
 
-  async _startImport(mode = 'files') {
+  async _startImport() {
     this._closeAllOverlays();
 
     this._importAbort = new AbortController();
 
-    const importFn = mode === 'folder' ? importFolder : importFiles;
-
     // The file picker opens immediately — overlay shows after files are selected
     let filesSelected = false;
 
+    const overlay = document.getElementById('import-overlay');
+    const statusEl = document.getElementById('import-status');
+    const fillEl = document.getElementById('import-progress-fill');
+    const detailEl = document.getElementById('import-detail');
+
     try {
-      const imported = await importFn((progress) => {
+      const imported = await importFolder((progress) => {
         // Show overlay once files are actually being imported
         if (!filesSelected && progress.phase === 'importing') {
           filesSelected = true;
-          document.getElementById('import-overlay').classList.remove('hidden');
+          overlay.classList.remove('hidden');
+          // Hide empty state once we start importing
+          document.getElementById('empty-state').classList.add('hidden');
+          document.getElementById('grid-container').style.opacity = '1';
         }
-
-        const statusEl = document.getElementById('import-status');
-        const fillEl = document.getElementById('import-progress-fill');
-        const detailEl = document.getElementById('import-detail');
 
         if (progress.phase === 'scanning') {
           statusEl.textContent = `Found ${progress.total} audio files...`;
@@ -90,17 +92,12 @@ export class App {
           fillEl.style.width = pct + '%';
           detailEl.textContent = progress.trackName;
         } else if (progress.phase === 'done') {
-          statusEl.textContent = 'Import complete!';
-          fillEl.style.width = '100%';
+          statusEl.textContent = 'Import complete — analyzing...';
+          fillEl.style.width = '0%';
         }
       }, this._importAbort.signal);
 
       if (!filesSelected) return; // User cancelled file picker
-
-      const overlay = document.getElementById('import-overlay');
-      const statusEl = document.getElementById('import-status');
-      const fillEl = document.getElementById('import-progress-fill');
-      const detailEl = document.getElementById('import-detail');
 
       if (imported > 0) {
         statusEl.textContent = 'Analyzing tracks...';
@@ -112,9 +109,17 @@ export class App {
           statusEl.textContent = `Analyzing: ${progress.current} / ${progress.total}`;
           fillEl.style.width = pct + '%';
           detailEl.textContent = progress.trackName;
+
+          // Place dot on mood grid in real-time as each track is analyzed
+          if (progress.analyzed) {
+            this.moodGrid.addTrack(progress.analyzed);
+            this.playlist.setTracks(
+              this.moodGrid.tracks
+            );
+          }
         }, this._analyzeAbort.signal);
 
-        statusEl.textContent = `Done! Imported and analyzed ${imported} tracks.`;
+        statusEl.textContent = `Done! ${imported} tracks imported.`;
         fillEl.style.width = '100%';
       } else {
         statusEl.textContent = 'No new tracks found.';
@@ -127,7 +132,6 @@ export class App {
       }, 1500);
     } catch (err) {
       if (err.name !== 'AbortError') {
-        const statusEl = document.getElementById('import-status');
         statusEl.textContent = `Error: ${err.message}`;
         console.error('Import error:', err);
       }
@@ -359,14 +363,9 @@ export class App {
       if (e.target === menuOverlay) menuOverlay.classList.add('hidden');
     });
 
-    document.getElementById('menu-add-files').addEventListener('click', () => {
+    document.getElementById('menu-add-album').addEventListener('click', () => {
       menuOverlay.classList.add('hidden');
-      this._startImport('files');
-    });
-
-    document.getElementById('menu-add-folder').addEventListener('click', () => {
-      menuOverlay.classList.add('hidden');
-      this._startImport('folder');
+      this._startImport();
     });
 
     document.getElementById('menu-reanalyse').addEventListener('click', async () => {

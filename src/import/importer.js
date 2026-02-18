@@ -205,7 +205,9 @@ async function extractMetadata(file) {
 
 /**
  * Process an array of audio files: extract metadata and store in IndexedDB.
- * Shared by both file and folder import flows.
+ * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
+ * @param {AbortSignal} signal
+ * @returns {Promise<number>} Number of newly imported tracks
  */
 async function processAudioFiles(files, onProgress, signal) {
   if (!files || files.length === 0) return 0;
@@ -268,59 +270,46 @@ async function processAudioFiles(files, onProgress, signal) {
 }
 
 /**
- * Pick individual audio files and import them.
- * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
- * @param {AbortSignal} signal - Optional abort signal
- * @returns {Promise<number>} Number of newly imported tracks
- */
-export async function importFiles(onProgress, signal) {
-  const files = await pickFiles(false);
-  return processAudioFiles(files, onProgress, signal);
-}
-
-/**
  * Pick a folder and import all audio files within it (recursively).
  * @param {function} onProgress - Callback: ({ phase, current, total, trackName })
  * @param {AbortSignal} signal - Optional abort signal
  * @returns {Promise<number>} Number of newly imported tracks
  */
 export async function importFolder(onProgress, signal) {
-  const files = await pickFiles(true);
+  const files = await pickFolder();
   return processAudioFiles(files, onProgress, signal);
 }
 
 /**
- * Open a file picker dialog.
- * @param {boolean} folderMode - If true, use directory picker to select entire folders.
+ * Open a folder picker dialog. Returns all audio files found in the directory.
  */
-function pickFiles(folderMode) {
+function pickFolder() {
   return new Promise((resolve) => {
+    let resolved = false;
+    const done = (files) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(files);
+    };
+
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg,.weba';
-
-    if (folderMode) {
-      input.webkitdirectory = true;
-    } else {
-      input.multiple = true;
-    }
+    input.webkitdirectory = true;
 
     input.addEventListener('change', () => {
       const allFiles = Array.from(input.files || []);
       const audioFiles = allFiles.filter(isAudioFile);
-      resolve(audioFiles);
+      done(audioFiles);
     });
 
     // User cancelled
-    input.addEventListener('cancel', () => resolve([]));
+    input.addEventListener('cancel', () => done([]));
 
-    // Also handle the case where the dialog is closed without selection
-    // by using a focus listener as a fallback
+    // Fallback: detect cancel via focus returning with no files.
+    // Use a long delay to avoid racing the change event on slow devices.
     const onFocus = () => {
-      setTimeout(() => {
-        if (!input.files || input.files.length === 0) resolve([]);
-        window.removeEventListener('focus', onFocus);
-      }, 500);
+      window.removeEventListener('focus', onFocus);
+      setTimeout(() => done([]), 2000);
     };
     window.addEventListener('focus', onFocus);
 

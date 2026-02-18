@@ -47,6 +47,16 @@ export class MoodGrid {
     this.render();
   }
 
+  /** Add a single analyzed track and re-render (for live import updates). */
+  addTrack(track) {
+    if (!track.analyzed || track.bpm == null || track.valence == null) return;
+    // Avoid duplicates
+    if (this.tracks.some((t) => t.id === track.id)) return;
+    this.tracks.push(track);
+    this.recalculateScaling();
+    this.render();
+  }
+
   recalculateScaling() {
     const analyzed = this.tracks;
     if (analyzed.length === 0) {

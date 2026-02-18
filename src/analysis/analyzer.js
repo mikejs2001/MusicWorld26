@@ -465,7 +465,9 @@ export async function analyzeAllUnanalyzed(onProgress, signal) {
     onProgress?.({ current: i + 1, total: unanalyzed.length, trackName: track.title });
 
     try {
-      await analyzeTrack(track.id);
+      const result = await analyzeTrack(track.id);
+      // Provide the fully analyzed track to the caller for live UI updates
+      onProgress?.({ current: i + 1, total: unanalyzed.length, trackName: track.title, analyzed: { ...track, ...result } });
     } catch (err) {
       console.warn(`Analysis failed for ${track.title}:`, err);
     }
