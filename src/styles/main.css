@@ -282,28 +282,86 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* Player bar */
-#player-bar {
+/* Playlist footer with Go To Player button */
+#playlist-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#btn-go-player {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#btn-go-player:hover {
+  background: var(--accent-hover);
+}
+
+/* === Full-screen Player === */
+#player-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+#player-screen.hidden {
+  display: none !important;
+}
+
+#player-screen-header {
   display: flex;
   align-items: center;
-  height: 90px;
-  background: var(--player-bg);
-  border-top: 1px solid var(--border);
+  justify-content: space-between;
   padding: 0 16px;
-  gap: 16px;
+  height: 48px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-#player-artwork {
-  width: 60px;
-  height: 60px;
+#player-screen-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#player-screen-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+/* Large artwork */
+#player-artwork-large {
+  width: 200px;
+  height: 200px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--bg-tertiary);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-#artwork-img {
+#artwork-img-large {
   width: 100%;
   height: 100%;
   background-size: cover;
@@ -311,49 +369,59 @@ html, body {
   background-color: var(--bg-tertiary);
 }
 
-#player-center {
-  flex: 1;
+/* Track info */
+#player-track-info {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 0;
-}
-
-#player-info {
-  display: flex;
-  gap: 8px;
-  font-size: 13px;
   max-width: 100%;
 }
 
 #track-title {
+  font-size: 18px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 #track-artist {
+  font-size: 14px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
+/* VU meters */
+#player-meters {
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+#player-meters canvas {
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+/* Player controls */
 #player-controls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
 .ctrl-btn {
   background: none;
   border: none;
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 22px;
   cursor: pointer;
-  padding: 4px;
+  padding: 8px;
   border-radius: 50%;
   transition: background 0.15s, transform 0.1s;
   line-height: 1;
@@ -364,9 +432,9 @@ html, body {
 }
 
 .ctrl-btn.play-btn {
-  font-size: 24px;
-  width: 40px;
-  height: 40px;
+  font-size: 28px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -374,16 +442,17 @@ html, body {
   border-radius: 50%;
 }
 
+/* Seek bar */
 #seek-row {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 500px;
+  max-width: 400px;
 }
 
 #seek-row span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   min-width: 36px;
   text-align: center;
@@ -403,22 +472,11 @@ html, body {
 
 #seek-bar::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: var(--text-primary);
   border-radius: 50%;
   cursor: pointer;
-}
-
-#player-meters {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-#player-meters canvas {
-  border-radius: 4px;
-  background: var(--bg-tertiary);
 }
 
 /* Overlays */
@@ -628,8 +686,7 @@ body.bg-gradient #grid-panel {
     flex: none;
     padding: 12px;
     min-height: 0;
-    /* Use available height minus other elements */
-    height: calc(100vh - 48px - 90px - 200px);
+    height: calc(100vh - 48px - 200px);
   }
 
   #grid-container {
@@ -660,48 +717,19 @@ body.bg-gradient #grid-panel {
     padding: 6px 12px;
   }
 
-  /* Player bar - compact for mobile */
-  #player-bar {
-    height: auto;
-    min-height: 80px;
+  #playlist-footer {
     padding: 8px 12px;
-    gap: 8px;
-    flex-wrap: wrap;
   }
 
-  #player-artwork {
-    width: 48px;
-    height: 48px;
+  /* Player screen mobile tweaks */
+  #player-artwork-large {
+    width: 180px;
+    height: 180px;
   }
 
-  #player-center {
-    gap: 2px;
-  }
-
-  #player-info {
-    font-size: 12px;
-    flex-direction: column;
-    gap: 0;
-    align-items: center;
-  }
-
-  #player-controls {
-    gap: 12px;
-  }
-
-  .ctrl-btn.play-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
-  }
-
-  #seek-row {
-    max-width: none;
-  }
-
-  /* Hide VU meters on very small screens to save space */
-  #player-meters {
-    display: none;
+  #player-screen-body {
+    gap: 16px;
+    padding: 16px;
   }
 
   /* Overlays */
@@ -717,13 +745,6 @@ body.bg-gradient #grid-panel {
   }
 }
 
-/* Show VU meters on medium mobile screens (landscape) */
-@media (max-width: 768px) and (min-width: 600px) {
-  #player-meters {
-    display: flex;
-  }
-}
-
 /* Very small screens */
 @media (max-width: 400px) {
   #top-bar h1 {
@@ -732,10 +753,26 @@ body.bg-gradient #grid-panel {
 
   #grid-panel {
     padding: 8px;
-    height: calc(100vh - 48px - 80px - 160px);
+    height: calc(100vh - 48px - 160px);
   }
 
   #playlist-panel {
     max-height: 160px;
+  }
+
+  #player-artwork-large {
+    width: 140px;
+    height: 140px;
+  }
+
+  #player-screen-body {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .ctrl-btn.play-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
   }
 }

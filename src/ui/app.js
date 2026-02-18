@@ -165,7 +165,8 @@ export class App {
 
       if (queue.length > 0) {
         this._renderPlaylist();
-        this._loadAndPlayTrack(queue[0]);
+        // Show Go To Player button instead of auto-playing
+        document.getElementById('playlist-footer').classList.remove('hidden');
       }
     };
   }
@@ -177,9 +178,13 @@ export class App {
     const rightCanvas = document.getElementById('vu-right');
 
     const dpr = window.devicePixelRatio || 1;
+    const meterW = 140;
+    const meterH = 100;
     for (const c of [leftCanvas, rightCanvas]) {
-      c.width = 100 * dpr;
-      c.height = 80 * dpr;
+      c.width = meterW * dpr;
+      c.height = meterH * dpr;
+      c.style.width = meterW + 'px';
+      c.style.height = meterH + 'px';
     }
 
     this.vuLeft = new VUMeter(leftCanvas);
@@ -268,7 +273,7 @@ export class App {
     document.getElementById('track-title').textContent = track.title;
     document.getElementById('track-artist').textContent = track.artist;
 
-    const artworkEl = document.getElementById('artwork-img');
+    const artworkEl = document.getElementById('artwork-img-large');
     if (track.artworkData) {
       const blob = new Blob([new Uint8Array(track.artworkData.data)], {
         type: track.artworkData.format,
@@ -287,6 +292,16 @@ export class App {
     }
   }
 
+  // --- Player Screen Navigation ---
+
+  _showPlayerScreen() {
+    document.getElementById('player-screen').classList.remove('hidden');
+  }
+
+  _hidePlayerScreen() {
+    document.getElementById('player-screen').classList.add('hidden');
+  }
+
   _formatTime(seconds) {
     if (!isFinite(seconds)) return '0:00';
     const m = Math.floor(seconds / 60);
@@ -302,6 +317,22 @@ export class App {
       if (this.moodGrid.selectedMood) {
         this.moodGrid.onMoodSelected(this.moodGrid.selectedMood);
       }
+    });
+
+    // Go To Player button — opens player screen and starts first track
+    document.getElementById('btn-go-player').addEventListener('click', () => {
+      const queue = this.playlist.queue;
+      if (queue.length > 0) {
+        this._showPlayerScreen();
+        // Start playing from the beginning of the playlist
+        const track = this.playlist.jumpTo(0);
+        if (track) this._loadAndPlayTrack(track);
+      }
+    });
+
+    // Back button — return to mood/playlist view
+    document.getElementById('btn-back').addEventListener('click', () => {
+      this._hidePlayerScreen();
     });
   }
 
@@ -326,7 +357,10 @@ export class App {
 
       li.addEventListener('click', () => {
         const t = this.playlist.jumpTo(i);
-        if (t) this._loadAndPlayTrack(t);
+        if (t) {
+          this._showPlayerScreen();
+          this._loadAndPlayTrack(t);
+        }
       });
 
       listEl.appendChild(li);
