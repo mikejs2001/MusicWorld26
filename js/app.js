@@ -178,7 +178,7 @@
             btn.classList.add('active');
             $$('.view').forEach(v => v.classList.remove('active'));
             $(`#view-${btn.dataset.view}`).classList.add('active');
-            if (btn.dataset.view === 'mood-grid') MoodGrid.resize();
+            if (btn.dataset.view === 'mood-grid') { refreshGrid(); MoodGrid.resize(); }
             if (btn.dataset.view === 'browse') renderBrowse();
             if (btn.dataset.view === 'add-tracks') renderTrackList();
             /* Close the dropdown after selection */

@@ -18,6 +18,9 @@ const MoodGrid = {
     resize() {
         const rect = this.canvas.parentElement.getBoundingClientRect();
         const size = Math.min(rect.width, rect.height);
+        /* Skip resize when the view is hidden (size=0) to avoid
+           clearing a valid canvas with zero dimensions */
+        if (size < 1) return;
         this.canvas.width  = size * window.devicePixelRatio;
         this.canvas.height = size * window.devicePixelRatio;
         this.canvas.style.width  = size + 'px';
