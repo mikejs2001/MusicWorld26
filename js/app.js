@@ -143,16 +143,28 @@
        ============================================================ */
     const splash = $('#splash');
     if (splash) {
+        let dismissed = false;
         const dismissSplash = () => {
-            document.documentElement.requestFullscreen().catch(() => {});
+            if (dismissed) return;
+            dismissed = true;
             splash.classList.add('hidden');
-            setTimeout(() => splash.remove(), 500);
+            setTimeout(() => {
+                splash.remove();
+                document.documentElement.requestFullscreen().catch(() => {});
+            }, 500);
         };
-        splash.addEventListener('click', dismissSplash, { once: true });
-        splash.addEventListener('touchend', (e) => {
+        const onTouch = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             dismissSplash();
-        }, { once: true });
+        };
+        splash.addEventListener('click', dismissSplash);
+        splash.addEventListener('touchstart', onTouch);
+        const btn = $('#splash-btn');
+        if (btn) {
+            btn.addEventListener('click', dismissSplash);
+            btn.addEventListener('touchstart', onTouch);
+        }
     }
 
     /* ============================================================

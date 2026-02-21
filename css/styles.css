@@ -21,7 +21,7 @@ body{
 .splash-title{font-size:32px;font-weight:700;color:#e0e0e0;letter-spacing:1px}
 .splash-sub{font-size:14px;color:#888;margin-top:6px}
 .splash-btn{
-    margin-top:32px;padding:14px 48px;font-size:16px;font-weight:600;
+    margin-top:32px;padding:18px 64px;font-size:18px;font-weight:600;
     color:#fff;background:#00c853;border:none;border-radius:28px;
     cursor:pointer;letter-spacing:1px;
     animation:pulse 2s ease-in-out infinite;
