@@ -20,16 +20,12 @@ body{
 .splash-icon{font-size:64px;margin-bottom:16px;color:#00e676}
 .splash-title{font-size:32px;font-weight:700;color:#e0e0e0;letter-spacing:1px}
 .splash-sub{font-size:14px;color:#888;margin-top:6px}
-.splash-btn{
-    margin-top:32px;padding:18px 64px;font-size:18px;font-weight:600;
-    color:#fff;background:#00c853;border:none;border-radius:28px;
-    cursor:pointer;letter-spacing:1px;
-    animation:pulse 2s ease-in-out infinite;
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
+.splash-loader{
+    margin:32px auto 0;width:36px;height:36px;
+    border:3px solid #333;border-top-color:#00e676;border-radius:50%;
+    animation:spin .8s linear infinite;
 }
-.splash-btn:active{background:#00e676;transform:scale(0.96)}
-@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* ===== Menu Bar ===== */
 #menu-bar{
