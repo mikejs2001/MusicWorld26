@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- ========== SPLASH — tap to enter fullscreen ========== -->
+    <!-- ========== SPLASH — auto-dismiss after 3s ========== -->
     <div id="splash">
         <div class="splash-content">
             <div class="splash-icon">&#9835;</div>
@@ -16,6 +16,16 @@
             <div class="splash-loader"></div>
         </div>
     </div>
+    <script>
+    (function(){
+        var s = document.getElementById('splash');
+        if (!s) return;
+        setTimeout(function(){
+            s.style.opacity = '0';
+            setTimeout(function(){ s.parentNode.removeChild(s); }, 500);
+        }, 3000);
+    })();
+    </script>
 
     <!-- Top Navigation -->
     <nav id="menu-bar">
