@@ -144,7 +144,16 @@
     const menuDotsBtn = $('#menu-dots');
     const menuDropdown = $('#menu-dropdown');
 
-    menuDotsBtn.addEventListener('click', (e) => {
+    /* Helper: adds both click and touchend so mobile always responds */
+    function onTap(el, fn) {
+        el.addEventListener('click', fn);
+        el.addEventListener('touchend', (e) => {
+            e.preventDefault();   // prevents ghost click
+            fn(e);
+        });
+    }
+
+    onTap(menuDotsBtn, (e) => {
         e.stopPropagation();
         const open = !menuDropdown.classList.contains('hidden');
         menuDropdown.classList.toggle('hidden', open);
@@ -156,9 +165,15 @@
         menuDropdown.classList.add('hidden');
         menuDotsBtn.setAttribute('aria-expanded', 'false');
     });
+    document.addEventListener('touchend', (e) => {
+        if (!menuDotsBtn.contains(e.target) && !menuDropdown.contains(e.target)) {
+            menuDropdown.classList.add('hidden');
+            menuDotsBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
 
     $$('.menu-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        onTap(btn, () => {
             $$('.menu-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             $$('.view').forEach(v => v.classList.remove('active'));
