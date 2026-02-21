@@ -6,9 +6,9 @@
     /* ============================================================
        Init
        ============================================================ */
-    await Library.init();
-    Analyzer.init();
-    Player.init();
+    try { await Library.init(); } catch (e) { console.error('Library init failed:', e); }
+    try { Analyzer.init(); } catch (e) { console.error('Analyzer init failed:', e); }
+    try { Player.init(); } catch (e) { console.error('Player init failed:', e); }
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -136,7 +136,7 @@
     });
 
     /* Load existing library into mood grid */
-    await refreshGrid();
+    try { await refreshGrid(); } catch (e) { console.error('refreshGrid failed:', e); }
 
     /* ============================================================
        Navigation — three-dot dropdown
