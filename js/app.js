@@ -143,10 +143,15 @@
        ============================================================ */
     const splash = $('#splash');
     if (splash) {
-        splash.addEventListener('click', () => {
+        const dismissSplash = () => {
             document.documentElement.requestFullscreen().catch(() => {});
             splash.classList.add('hidden');
             setTimeout(() => splash.remove(), 500);
+        };
+        splash.addEventListener('click', dismissSplash, { once: true });
+        splash.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            dismissSplash();
         }, { once: true });
     }
 

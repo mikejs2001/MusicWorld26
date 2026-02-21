@@ -20,10 +20,15 @@ body{
 .splash-icon{font-size:64px;margin-bottom:16px;color:#00e676}
 .splash-title{font-size:32px;font-weight:700;color:#e0e0e0;letter-spacing:1px}
 .splash-sub{font-size:14px;color:#888;margin-top:6px}
-.splash-tap{
-    margin-top:32px;font-size:13px;color:#555;
+.splash-btn{
+    margin-top:32px;padding:14px 48px;font-size:16px;font-weight:600;
+    color:#fff;background:#00c853;border:none;border-radius:28px;
+    cursor:pointer;letter-spacing:1px;
     animation:pulse 2s ease-in-out infinite;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
 }
+.splash-btn:active{background:#00e676;transform:scale(0.96)}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
 
 /* ===== Menu Bar ===== */
