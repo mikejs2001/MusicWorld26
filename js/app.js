@@ -95,9 +95,9 @@
 
     /* Build the visual meter picker */
     const meterStyles = [
-        { id: 'needle',   name: 'Classic' },
-        { id: 'warm',     name: 'Warm Amber' },
-        { id: 'blue',     name: 'Blue Teal' },
+        { id: 'needle',   name: 'Technics' },
+        { id: 'warm',     name: 'Marantz' },
+        { id: 'blue',     name: 'Pioneer' },
         { id: 'lcd',      name: 'LCD' },
         { id: 'led',      name: 'LED Bars' },
         { id: 'spectrum', name: 'Spectrum' },
