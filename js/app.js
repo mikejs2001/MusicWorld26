@@ -20,6 +20,18 @@
     const $$ = (sel) => document.querySelectorAll(sel);
 
     /* ============================================================
+       Splash screen — tap to enter fullscreen & dismiss
+       ============================================================ */
+    const splash = $('#splash');
+    if (splash) {
+        splash.addEventListener('click', () => {
+            document.documentElement.requestFullscreen().catch(() => {});
+            splash.classList.add('hidden');
+            setTimeout(() => splash.remove(), 500);
+        }, { once: true });
+    }
+
+    /* ============================================================
        Display-name formatter
        Cleans up filenames formatted for older systems:
          the_great_pretender  →  The Great Pretender

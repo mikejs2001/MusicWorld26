@@ -11,27 +11,15 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- ========== SPLASH — auto-dismiss after 3s ========== -->
+    <!-- ========== SPLASH — tap to enter fullscreen ========== -->
     <div id="splash">
         <div class="splash-content">
             <div class="splash-icon">&#9835;</div>
             <h1 class="splash-title">MusicWorld26</h1>
             <p class="splash-sub">Mood Music Player</p>
-            <div class="splash-loader"></div>
+            <p class="splash-tap">Tap anywhere to start</p>
         </div>
     </div>
-    <script>
-    (function(){
-        var s = document.getElementById('splash');
-        if (!s) return;
-        setTimeout(function(){
-            s.style.opacity = '0';
-            /* Scroll trick: nudge scroll to hide the mobile address bar */
-            window.scrollTo(0, 1);
-            setTimeout(function(){ if (s.parentNode) s.parentNode.removeChild(s); }, 500);
-        }, 3000);
-    })();
-    </script>
 
     <!-- Top Navigation -->
     <nav id="menu-bar">
