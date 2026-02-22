@@ -12,7 +12,7 @@ body{
 #splash{
     position:fixed;inset:0;z-index:999;
     display:flex;align-items:center;justify-content:center;
-    background:#0d0d0d;
+    background:#0d0d0d;cursor:pointer;
     transition:opacity .5s ease;
 }
 .splash-content{text-align:center}
@@ -24,6 +24,12 @@ body{
     border:3px solid #333;border-top-color:#00e676;border-radius:50%;
     animation:spin .8s linear infinite;
 }
+.splash-tap{
+    margin-top:24px;font-size:16px;color:#00e676;font-weight:600;
+    letter-spacing:1px;opacity:0;transition:opacity .5s ease;
+}
+.splash-tap.visible{opacity:1;animation:pulse-tap 2s ease-in-out infinite}
+@keyframes pulse-tap{0%,100%{opacity:.5}50%{opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ===== Menu Bar ===== */

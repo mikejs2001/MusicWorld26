@@ -11,23 +11,35 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- ========== SPLASH — auto-dismiss after 3s ========== -->
+    <!-- ========== SPLASH — tap to dismiss & enter fullscreen ========== -->
     <div id="splash">
         <div class="splash-content">
             <div class="splash-icon">&#9835;</div>
             <h1 class="splash-title">MusicWorld26</h1>
             <p class="splash-sub">Mood Music Player</p>
             <div class="splash-loader"></div>
+            <p class="splash-tap">Tap to start</p>
         </div>
     </div>
     <script>
     (function(){
         var s = document.getElementById('splash');
         if (!s) return;
-        setTimeout(function(){
+        var tapText = s.querySelector('.splash-tap');
+        /* Hide "Tap to start" initially, show it after the loading animation */
+        setTimeout(function(){ tapText.classList.add('visible'); }, 2500);
+
+        function dismiss() {
+            /* Enter fullscreen on this user gesture */
+            var el = document.documentElement;
+            var rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (rfs) rfs.call(el).catch(function(){});
+            /* Fade out and remove splash */
             s.style.opacity = '0';
-            setTimeout(function(){ s.parentNode.removeChild(s); }, 500);
-        }, 3000);
+            setTimeout(function(){ if (s.parentNode) s.parentNode.removeChild(s); }, 500);
+        }
+        s.addEventListener('click', dismiss);
+        s.addEventListener('touchend', function(e){ e.preventDefault(); dismiss(); });
     })();
     </script>
 
