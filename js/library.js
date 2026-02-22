@@ -6,8 +6,32 @@ const Library = {
     DB_VERSION: 2,
 
     async init() {
+        try {
+            await this._openDb(this.DB_VERSION);
+        } catch (err) {
+            /* If the on-device DB is already at a higher version than
+               DB_VERSION, IndexedDB throws a VersionError.  Recover by
+               probing the existing version and re-opening at that level. */
+            if (err && err.name === 'VersionError') {
+                const probe = indexedDB.open(this.DB_NAME);  // no version → current
+                const existing = await new Promise((res, rej) => {
+                    probe.onsuccess = (e) => {
+                        const v = e.target.result.version;
+                        e.target.result.close();
+                        res(v);
+                    };
+                    probe.onerror = (e) => rej(e.target.error);
+                });
+                await this._openDb(Math.max(existing, this.DB_VERSION));
+            } else {
+                throw err;
+            }
+        }
+    },
+
+    _openDb(version) {
         return new Promise((resolve, reject) => {
-            const req = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+            const req = indexedDB.open(this.DB_NAME, version);
 
             req.onupgradeneeded = (e) => {
                 const db = e.target.result;
