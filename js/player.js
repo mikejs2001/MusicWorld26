@@ -17,8 +17,29 @@ const Player = {
     onPlayStateChange: null,
     onTimeUpdate: null,
 
+    _inited: false,
+
     init() {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        /* Register events early — these don't need AudioContext */
+        this.audio.addEventListener('ended', () => this._onEnded());
+        this.audio.addEventListener('timeupdate', () => {
+            if (this.onTimeUpdate) this.onTimeUpdate(this.audio.currentTime, this.audio.duration);
+        });
+        /* Try to create AudioContext now (allows sharing with Analyzer).
+           If it fails (mobile restrictions), _ensureAudio() will retry
+           later during a user gesture. */
+        try {
+            this._initAudioCtx();
+        } catch (e) {
+            console.warn('Player: AudioContext deferred to first play', e);
+        }
+    },
+
+    _initAudioCtx() {
+        if (this._inited) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        this.audioCtx = new AC();
         this.analyser = this.audioCtx.createAnalyser();
         this.analyser.fftSize = 256;
         this.analyser.smoothingTimeConstant = 0.3;
@@ -28,12 +49,11 @@ const Player = {
         this.source = this.audioCtx.createMediaElementSource(this.audio);
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioCtx.destination);
+        this._inited = true;
+    },
 
-        /* Events */
-        this.audio.addEventListener('ended', () => this._onEnded());
-        this.audio.addEventListener('timeupdate', () => {
-            if (this.onTimeUpdate) this.onTimeUpdate(this.audio.currentTime, this.audio.duration);
-        });
+    _ensureAudio() {
+        this._initAudioCtx();
     },
 
     /* ---------- playlist control ---------- */
@@ -60,7 +80,8 @@ const Player = {
         this.audio.src = URL.createObjectURL(blob);
         this.audio.load();
 
-        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+        this._ensureAudio();
+        if (this.audioCtx && this.audioCtx.state === 'suspended') await this.audioCtx.resume();
 
         await this.audio.play();
         this.isPlaying = true;
@@ -74,7 +95,8 @@ const Player = {
     },
 
     async togglePlayPause() {
-        if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+        this._ensureAudio();
+        if (this.audioCtx && this.audioCtx.state === 'suspended') await this.audioCtx.resume();
 
         if (this.audio.paused) {
             await this.audio.play();
@@ -113,6 +135,7 @@ const Player = {
     /* ---------- audio data for VU meters ---------- */
 
     getLevels() {
+        if (!this.analyser) return { left: 0, right: 0 };
         this.analyser.getByteFrequencyData(this.freqData);
         const half = Math.floor(this.freqData.length / 2);
         let sumL = 0, sumR = 0;
@@ -134,6 +157,7 @@ const Player = {
 
     /* Raw frequency bins for spectrum analyser (0-255 per bin) */
     getFrequencyData() {
+        if (!this.analyser) return null;
         this.analyser.getByteFrequencyData(this.freqData);
         return this.freqData;
     },

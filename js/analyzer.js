@@ -4,24 +4,34 @@ const Analyzer = {
     ctx: null,
 
     init() {
-        /* AudioContext is now created lazily in ensureCtx() so it
-           happens during a user-gesture context (file picker flow).
-           Some mobile browsers block or silently fail when creating
-           an AudioContext outside a user gesture. */
+        /* No-op — context is created lazily via ensureCtx() so it
+           happens inside a user-gesture call-stack (file-picker flow).
+           Mobile browsers block or silently fail AudioContext creation
+           outside user gestures. */
     },
 
-    ensureCtx() {
+    /* Accept an external AudioContext (e.g. Player's) so the page
+       doesn't create multiple contexts (mobile browsers limit them). */
+    setContext(ctx) {
+        this.ctx = ctx;
+    },
+
+    async ensureCtx() {
         if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) throw new Error('Web Audio API is not supported on this browser');
+            this.ctx = new AC();
         }
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+        }
     },
 
     /* ============================================================
        Main entry — analyse a File, return metadata + blobs
        ============================================================ */
     async analyzeFile(file) {
-        this.ensureCtx();
+        await this.ensureCtx();
         const arrayBuffer = await file.arrayBuffer();
 
         /* Try ID3 tags first */

@@ -8,7 +8,13 @@
        ============================================================ */
     try { await Library.init(); } catch (e) { console.error('Library init failed:', e); }
     try { Analyzer.init(); } catch (e) { console.error('Analyzer init failed:', e); }
-    try { Player.init(); } catch (e) { console.error('Player init failed:', e); }
+    try {
+        Player.init();
+        /* Share Player's AudioContext with Analyzer so we don't create
+           multiple contexts — mobile browsers limit the count and may
+           block or silently fail when a second context is created. */
+        if (Player.audioCtx) Analyzer.setContext(Player.audioCtx);
+    } catch (e) { console.error('Player init failed:', e); }
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -239,6 +245,14 @@
         files = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|m4a|ogg|wav|flac|aac|wma|opus)$/i.test(f.name));
         if (files.length === 0) return;
 
+        /* Ensure database is ready before we start */
+        try {
+            await Library.ensureDb();
+        } catch (e) {
+            alert('Cannot open music database.\n\n' + (e.message || e));
+            return;
+        }
+
         const prog     = $('#analysis-progress');
         const fill     = $('#progress-fill');
         const text     = $('#progress-text');
@@ -246,7 +260,7 @@
         prog.hidden    = false;
         status.textContent = 'Analysing tracks…';
 
-        let added = 0, skipped = 0;
+        let added = 0, skipped = 0, firstError = null;
 
         for (let i = 0; i < files.length; i++) {
             text.textContent  = `${i + 1} / ${files.length}`;
@@ -262,14 +276,29 @@
                 added++;
             } catch (err) {
                 skipped++;
+                if (!firstError) firstError = err;
                 console.warn('Skipping', files[i].name, err);
             }
         }
 
-        status.textContent = skipped === 0
-            ? `Done! ${added} track${added !== 1 ? 's' : ''} added.`
-            : `Done! ${added} added, ${skipped} skipped.`;
-        setTimeout(() => { prog.hidden = true; }, 2500);
+        if (added > 0) {
+            status.textContent = skipped === 0
+                ? `Done! ${added} track${added !== 1 ? 's' : ''} added.`
+                : `Done! ${added} added, ${skipped} skipped.`;
+        } else {
+            status.textContent = 'Error: no tracks could be imported.';
+        }
+
+        /* If every single track failed, show the actual error so the
+           user (or developer) can see what went wrong on this device */
+        if (added === 0 && skipped > 0 && firstError) {
+            const msg = firstError.message || String(firstError);
+            alert('Could not import any tracks.\n\nError: ' + msg +
+                  '\n\nPlease try closing other tabs or restarting the browser.');
+        }
+
+        /* Keep progress visible longer when there were problems */
+        setTimeout(() => { prog.hidden = true; }, added === 0 ? 8000 : 2500);
 
         await refreshGrid();
         renderTrackList();

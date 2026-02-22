@@ -27,10 +27,15 @@ const Library = {
         });
     },
 
+    /* Re-open the database if the connection was lost or init failed */
+    async ensureDb() {
+        if (!this.db) await this.init();
+    },
+
     /* ---------- tracks ---------- */
 
     async addTrack(meta, audioBlob, artworkBlob) {
-        if (!this.db) throw new Error('Library database not initialised');
+        await this.ensureDb();
 
         /* Step 1: store track metadata (small, should always succeed) */
         const trackId = await new Promise((resolve, reject) => {
@@ -62,6 +67,7 @@ const Library = {
     },
 
     async getAllTracks() {
+        await this.ensureDb();
         return new Promise((resolve, reject) => {
             const req = this.db.transaction('tracks', 'readonly').objectStore('tracks').getAll();
             req.onsuccess = () => resolve(req.result);
