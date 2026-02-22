@@ -644,6 +644,17 @@
         document.body.classList.toggle('landscape', isLandscape);
         document.body.classList.toggle('playing', Player.isPlaying);
 
+        /* Auto-fullscreen in landscape, exit in portrait */
+        if (isLandscape) {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        } else {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
         /* Resize canvases after layout settles.
            Double rAF: first frame applies the class, second frame
            lets the CSS grid/flexbox reflow finish so element
