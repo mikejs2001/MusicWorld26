@@ -20,6 +20,27 @@
     const $$ = (sel) => document.querySelectorAll(sel);
 
     /* ============================================================
+       Fullscreen prompt — appears after splash, enters fullscreen
+       on the user's first tap (browsers require a user gesture).
+       ============================================================ */
+    const fsPrompt = document.getElementById('fs-prompt');
+    if (fsPrompt) {
+        /* Show the prompt after the 3s splash + 0.5s fade */
+        setTimeout(() => fsPrompt.classList.add('visible'), 3600);
+
+        const goFullscreen = () => {
+            fsPrompt.classList.remove('visible');
+            setTimeout(() => fsPrompt.classList.add('hidden'), 400);
+            const el = document.documentElement;
+            const rfs = el.requestFullscreen || el.webkitRequestFullscreen
+                     || el.msRequestFullscreen;
+            if (rfs) rfs.call(el).catch(() => {});
+        };
+        fsPrompt.addEventListener('click', goFullscreen);
+        fsPrompt.addEventListener('touchend', (e) => { e.preventDefault(); goFullscreen(); });
+    }
+
+    /* ============================================================
        Display-name formatter
        Cleans up filenames formatted for older systems:
          the_great_pretender  →  The Great Pretender
