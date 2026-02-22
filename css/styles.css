@@ -26,24 +26,6 @@ body{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ===== Fullscreen Prompt ===== */
-#fs-prompt{
-    position:fixed;inset:0;z-index:998;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(13,13,13,.85);
-    cursor:pointer;
-    opacity:0;transition:opacity .4s ease;
-    pointer-events:none;
-}
-#fs-prompt.visible{opacity:1;pointer-events:auto}
-#fs-prompt.hidden{display:none}
-#fs-prompt p{
-    font-size:20px;color:#00e676;font-weight:600;
-    letter-spacing:1px;
-    animation:pulse-fs 2s ease-in-out infinite;
-}
-@keyframes pulse-fs{0%,100%{opacity:.6}50%{opacity:1}}
-
 /* ===== Menu Bar ===== */
 #menu-bar{
     display:flex;align-items:center;gap:12px;

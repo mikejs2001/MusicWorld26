@@ -1,0 +1,8 @@
+{
+    "name": "MusicWorld26 — Mood Music Player",
+    "short_name": "MusicWorld26",
+    "start_url": ".",
+    "display": "fullscreen",
+    "background_color": "#0d0d0d",
+    "theme_color": "#0d0d0d"
+}
