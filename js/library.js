@@ -3,7 +3,7 @@
 const Library = {
     db: null,
     DB_NAME: 'MusicWorld26',
-    DB_VERSION: 1,
+    DB_VERSION: 2,
 
     async init() {
         return new Promise((resolve, reject) => {
