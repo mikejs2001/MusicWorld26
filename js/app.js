@@ -246,6 +246,8 @@
         prog.hidden    = false;
         status.textContent = 'Analysing tracks…';
 
+        let added = 0, skipped = 0;
+
         for (let i = 0; i < files.length; i++) {
             text.textContent  = `${i + 1} / ${files.length}`;
             fill.style.width  = `${((i + 1) / files.length) * 100}%`;
@@ -257,13 +259,17 @@
                 delete meta._audioBlob;
                 delete meta._artworkBlob;
                 await Library.addTrack(meta, result._audioBlob, result._artworkBlob);
+                added++;
             } catch (err) {
+                skipped++;
                 console.warn('Skipping', files[i].name, err);
             }
         }
 
-        status.textContent = 'Done!';
-        setTimeout(() => { prog.hidden = true; }, 1500);
+        status.textContent = skipped === 0
+            ? `Done! ${added} track${added !== 1 ? 's' : ''} added.`
+            : `Done! ${added} added, ${skipped} skipped.`;
+        setTimeout(() => { prog.hidden = true; }, 2500);
 
         await refreshGrid();
         renderTrackList();

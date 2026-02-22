@@ -4,10 +4,16 @@ const Analyzer = {
     ctx: null,
 
     init() {
-        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        /* AudioContext is now created lazily in ensureCtx() so it
+           happens during a user-gesture context (file picker flow).
+           Some mobile browsers block or silently fail when creating
+           an AudioContext outside a user gesture. */
     },
 
     ensureCtx() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
         if (this.ctx.state === 'suspended') this.ctx.resume();
     },
 

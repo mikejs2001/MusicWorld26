@@ -30,20 +30,35 @@ const Library = {
     /* ---------- tracks ---------- */
 
     async addTrack(meta, audioBlob, artworkBlob) {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(['tracks', 'audio', 'artwork'], 'readwrite');
-            const trackReq = tx.objectStore('tracks').add(meta);
+        if (!this.db) throw new Error('Library database not initialised');
 
-            trackReq.onsuccess = () => {
-                const id = trackReq.result;
-                tx.objectStore('audio').put({ trackId: id, blob: audioBlob });
-                if (artworkBlob) {
-                    tx.objectStore('artwork').put({ trackId: id, blob: artworkBlob });
-                }
-                resolve(id);
-            };
-            tx.onerror = (e) => reject(e.target.error);
+        /* Step 1: store track metadata (small, should always succeed) */
+        const trackId = await new Promise((resolve, reject) => {
+            const tx = this.db.transaction('tracks', 'readwrite');
+            const req = tx.objectStore('tracks').add(meta);
+            tx.oncomplete = () => resolve(req.result);
+            tx.onerror    = (e) => reject(e.target.error);
+            tx.onabort    = ()  => reject(tx.error || new Error('Track metadata transaction aborted'));
         });
+
+        /* Step 2: store audio blob separately — if this fails (e.g. quota)
+           the track metadata is still saved so the library isn't empty */
+        try {
+            await new Promise((resolve, reject) => {
+                const tx = this.db.transaction(['audio', 'artwork'], 'readwrite');
+                tx.objectStore('audio').put({ trackId, blob: audioBlob });
+                if (artworkBlob) {
+                    tx.objectStore('artwork').put({ trackId, blob: artworkBlob });
+                }
+                tx.oncomplete = () => resolve();
+                tx.onerror    = (e) => reject(e.target.error);
+                tx.onabort    = ()  => reject(tx.error || new Error('Blob storage aborted'));
+            });
+        } catch (err) {
+            console.warn('Audio blob storage failed for track', trackId, err);
+        }
+
+        return trackId;
     },
 
     async getAllTracks() {
