@@ -34,6 +34,18 @@ body{
 }
 .menu-brand{font-weight:700;font-size:15px;color:#00e676;margin-right:auto;letter-spacing:.5px}
 
+/* Persistent Add Music button in nav bar */
+#btn-add-music{
+    background:#00e676;color:#0d0d0d;
+    border:none;border-radius:6px;
+    padding:6px 14px;font-size:13px;font-weight:700;
+    cursor:pointer;white-space:nowrap;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:.15s;
+}
+#btn-add-music:hover{background:#00ff88}
+#btn-add-music:active{background:#00c853;transform:scale(.96)}
+
 /* Three-dot menu button */
 .menu-wrapper{position:relative}
 #menu-dots{

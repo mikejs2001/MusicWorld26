@@ -234,8 +234,12 @@
     /* ============================================================
        Add Tracks
        ============================================================ */
-    $('#btn-add-files').addEventListener('click', () => $('#file-input').click());
-    $('#btn-add-folder').addEventListener('click', () => $('#folder-input').click());
+    /* Nav-bar "Add Music" button — always visible, uses onTap for mobile */
+    onTap($('#btn-add-music'), () => $('#add-music-input').click());
+    $('#add-music-input').addEventListener('change', (e) => importFiles(Array.from(e.target.files)));
+
+    onTap($('#btn-add-files'), () => $('#file-input').click());
+    onTap($('#btn-add-folder'), () => $('#folder-input').click());
 
     $('#file-input').addEventListener('change', (e) => importFiles(Array.from(e.target.files)));
     $('#folder-input').addEventListener('change', (e) => importFiles(Array.from(e.target.files)));
