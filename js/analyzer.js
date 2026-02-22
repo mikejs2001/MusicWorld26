@@ -69,9 +69,9 @@ const Analyzer = {
         const data = buf.getChannelData(0);
         const sr   = buf.sampleRate;
 
-        /* Use a 20-second slice from the middle */
-        const start = Math.floor(Math.max(0, buf.duration / 2 - 10) * sr);
-        const end   = Math.min(data.length, start + 20 * sr);
+        /* Use a 30-second slice from the middle for better accuracy */
+        const start = Math.floor(Math.max(0, buf.duration / 2 - 15) * sr);
+        const end   = Math.min(data.length, start + 30 * sr);
         const seg   = data.subarray(start, end);
 
         /* Build onset-strength envelope (energy in short windows) */
@@ -94,8 +94,8 @@ const Analyzer = {
         const mean = onset.reduce((a, b) => a + b, 0) / onset.length;
         for (let i = 0; i < onset.length; i++) onset[i] -= mean;
 
-        /* Autocorrelation over lag range corresponding to 40–200 BPM */
-        const minLag = Math.floor(60 / (200 * winMs / 1000));  // 200 BPM
+        /* Autocorrelation over lag range corresponding to 40–220 BPM */
+        const minLag = Math.floor(60 / (220 * winMs / 1000));  // 220 BPM
         const maxLag = Math.ceil(60 / (40 * winMs / 1000));    //  40 BPM
         const N = onset.length;
         const corr = [];
@@ -118,30 +118,29 @@ const Analyzer = {
 
         if (peaks.length === 0) return 120;           // fallback
 
-        /* Score each peak: raw correlation strength + musical-range bonus.
-           Strongly prefer the 70–145 BPM range where most music sits.
-           Also check if a peak at half-tempo exists (harmonic consistency). */
+        /* Score each peak: raw correlation strength + mild musical-range bonus.
+           Light preference for common tempo range — but not so strong that
+           it forces everything into 80–140 and causes grid bunching. */
         let bestBpm = 120, bestScore = -Infinity;
 
         for (const pk of peaks) {
             const bpm = 60 / (pk.lag * winMs / 1000);
             let score = pk.val;
 
-            /* Strong preference for the common tempo range */
-            if (bpm >= 70 && bpm <= 145) score *= 2.0;
-            else if (bpm >= 55 && bpm <= 165) score *= 1.3;
+            /* Mild preference for common tempo — just 1.3x, not 2x */
+            if (bpm >= 70 && bpm <= 150) score *= 1.3;
 
             /* Check for harmonic support: is there also a peak near 2× this lag? */
             const dblLag = pk.lag * 2;
             const halfPeak = peaks.find(p => Math.abs(p.lag - dblLag) <= 2);
-            if (halfPeak) score *= 1.4;
+            if (halfPeak) score *= 1.3;
 
             if (score > bestScore) { bestScore = score; bestBpm = bpm; }
         }
 
-        /* Final sanity clamp */
-        while (bestBpm > 170) bestBpm /= 2;
-        while (bestBpm < 55)  bestBpm *= 2;
+        /* Final sanity clamp — wider range to preserve real tempo differences */
+        while (bestBpm > 200) bestBpm /= 2;
+        while (bestBpm < 50)  bestBpm *= 2;
         return Math.round(bestBpm);
     },
 
@@ -160,8 +159,10 @@ const Analyzer = {
         const numSegs = Math.min(24, Math.floor(data.length / N));
         if (numSegs === 0) return 0.5;
 
-        /* Accumulate a chromagram (12 pitch classes) across segments */
+        /* Accumulate a chromagram (12 pitch classes) across segments,
+           and also measure spectral brightness (centroid) */
         const chroma = new Float32Array(12);
+        let centroidSum = 0, centroidWeight = 0;
 
         for (let s = 0; s < numSegs; s++) {
             const off = Math.floor((data.length - N) * s / Math.max(1, numSegs - 1));
@@ -173,6 +174,16 @@ const Analyzer = {
 
             const mag = this._fft(win);
 
+            /* Spectral centroid — weighted average frequency.
+               Bright/tinny tracks score higher, dark/muffled tracks lower. */
+            let wSum = 0, mSum = 0;
+            for (let bin = 1; bin < N / 2; bin++) {
+                const freq = bin * sr / N;
+                wSum += freq * mag[bin];
+                mSum += mag[bin];
+            }
+            if (mSum > 0) { centroidSum += wSum / mSum; centroidWeight++; }
+
             /* Map FFT bins → pitch classes (C2 65 Hz – C7 2100 Hz) */
             for (let bin = 1; bin < N / 2; bin++) {
                 const freq = bin * sr / N;
@@ -183,7 +194,7 @@ const Analyzer = {
             }
         }
 
-        /* Normalise to unit sum */
+        /* Normalise chroma to unit sum */
         const sum = chroma.reduce((a, b) => a + b, 0);
         if (sum === 0) return 0.5;
         for (let i = 0; i < 12; i++) chroma[i] /= sum;
@@ -201,10 +212,21 @@ const Analyzer = {
             bestMin = Math.max(bestMin, this._pearson(rot, minor));
         }
 
-        /* Mode difference → valence: major = happy (→1), minor = sad (→0)
-           Typical |diff| is 0.05–0.25 for tonal music */
+        /* Key-based valence: major = happy (→1), minor = sad (→0) */
         const diff = bestMaj - bestMin;
-        return Math.min(1, Math.max(0, diff / 0.4 + 0.5));
+        const keyValence = Math.min(1, Math.max(0, diff / 0.3 + 0.5));
+
+        /* Spectral brightness valence: bright = happy, dark = sad.
+           Typical centroid for music is ~500–3000 Hz.
+           Map to 0–1 with a log scale for better spread. */
+        const avgCentroid = centroidWeight > 0 ? centroidSum / centroidWeight : 1000;
+        const brightness = Math.min(1, Math.max(0, (Math.log2(avgCentroid) - 9) / 3));
+        // log2(500)≈9, log2(4000)≈12 → range of ~3
+
+        /* Blend: 60% key detection, 40% brightness.
+           This gives much better spread than key alone since brightness
+           varies a lot more between tracks. */
+        return keyValence * 0.6 + brightness * 0.4;
     },
 
     /* Radix-2 Cooley-Tukey FFT → magnitude spectrum (first N/2 bins) */
@@ -266,8 +288,8 @@ const Analyzer = {
     },
 
     normalizeBPM(bpm) {
-        /* Tighter range so typical 70–170 BPM spreads across full 0–1 */
-        return Math.min(1, Math.max(0, (bpm - 70) / 100));
+        /* Map 50–200 BPM across full 0–1 range */
+        return Math.min(1, Math.max(0, (bpm - 50) / 150));
     },
 
     /* ============================================================
