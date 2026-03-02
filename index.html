@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>MusicWorld26 — Mood Music Player</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Top bar -->
+    <header id="top-bar">
+      <button id="menu-btn" class="icon-btn" title="Menu">&#9776;</button>
+      <h1>MusicWorld26</h1>
+      <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+    </header>
+
+    <!-- Main content area -->
+    <main id="main-content">
+      <!-- Mood Grid -->
+      <section id="grid-panel">
+        <div id="grid-body">
+          <div id="grid-container">
+            <canvas id="mood-grid"></canvas>
+            <div id="grid-labels">
+              <span class="label-top">Fast</span>
+              <span class="label-bottom">Slow</span>
+              <span class="label-left">Sad</span>
+              <span class="label-right">Happy</span>
+            </div>
+          </div>
+          <div id="empty-state">
+            <p>No tracks imported yet.</p>
+            <button id="empty-add-btn">Add Album</button>
+          </div>
+        </div>
+        <button id="grid-toggle" title="Toggle mood grid">
+          <span id="grid-toggle-label">Mood Grid</span>
+          <span id="grid-toggle-arrow">&#9660;</span>
+        </button>
+      </section>
+
+      <!-- Playlist sidebar / bottom panel on mobile -->
+      <aside id="playlist-panel">
+        <div id="playlist-header">
+          <h2>Playlist</h2>
+          <select id="playlist-size">
+            <option value="10">10 tracks</option>
+            <option value="25" selected>25 tracks</option>
+            <option value="50">50 tracks</option>
+            <option value="0">Continuous</option>
+          </select>
+        </div>
+        <div id="search-bar">
+          <input type="text" id="search-input" placeholder="Search tracks..." />
+        </div>
+        <ol id="playlist-tracks"></ol>
+        <div id="playlist-footer" class="hidden">
+          <button id="btn-go-player">Go To Player</button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Full-screen Player -->
+    <div id="player-screen" class="hidden">
+      <header id="player-screen-header">
+        <button id="btn-back" class="icon-btn" title="Back">&#8592;</button>
+        <span id="player-screen-title">Now Playing</span>
+        <span></span>
+      </header>
+      <div id="player-screen-body">
+        <div id="player-artwork-large">
+          <div id="artwork-img-large"></div>
+        </div>
+        <div id="player-track-info">
+          <span id="track-title">No track loaded</span>
+          <span id="track-artist"></span>
+        </div>
+        <div id="player-meters">
+          <canvas id="vu-left" width="100" height="80"></canvas>
+          <canvas id="vu-right" width="100" height="80"></canvas>
+        </div>
+        <div id="player-controls">
+          <button id="btn-shuffle" class="ctrl-btn ctrl-mode" title="Shuffle">&#128256;</button>
+          <button id="btn-prev" class="ctrl-btn" title="Previous">&#9198;</button>
+          <button id="btn-play" class="ctrl-btn play-btn" title="Play">&#9654;</button>
+          <button id="btn-next" class="ctrl-btn" title="Next">&#9197;</button>
+          <button id="btn-repeat" class="ctrl-btn ctrl-mode" title="Repeat">&#128257;</button>
+        </div>
+        <div id="seek-row">
+          <span id="time-elapsed">0:00</span>
+          <input type="range" id="seek-bar" min="0" max="1000" value="0" />
+          <span id="time-remaining">0:00</span>
+        </div>
+        <div id="volume-row">
+          <button id="btn-mute" class="ctrl-btn ctrl-small" title="Mute">&#128266;</button>
+          <input type="range" id="volume-bar" min="0" max="100" value="100" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Menu overlay -->
+    <div id="menu-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <button class="overlay-close">&times;</button>
+        <h2>Menu</h2>
+        <nav id="menu-nav">
+          <button id="menu-add-album">
+            Add Album
+            <span class="menu-desc">Import an entire folder / album</span>
+          </button>
+          <button id="menu-reanalyse">Reanalyse Library</button>
+          <button id="menu-rebuild-index">Rebuild Index</button>
+          <button id="menu-clear-library">Clear Library</button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Settings overlay -->
+    <div id="settings-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <button class="overlay-close">&times;</button>
+        <h2>Settings</h2>
+        <div class="settings-group">
+          <label>VU Meter Style</label>
+          <select id="setting-vu-style">
+            <option value="analog">Analog Needle</option>
+            <option value="lcd">LCD Bars</option>
+            <option value="led">LED Bars</option>
+          </select>
+        </div>
+        <div class="settings-group">
+          <label>Background Mode</label>
+          <select id="setting-bg-mode">
+            <option value="artwork">Album Artwork</option>
+            <option value="dark">Dark</option>
+            <option value="gradient">Gradient</option>
+          </select>
+        </div>
+        <div class="settings-group">
+          <label>
+            <input type="checkbox" id="setting-dark-mode" checked />
+            Dark Mode
+          </label>
+        </div>
+        <div class="settings-group">
+          <label>
+            <input type="checkbox" id="setting-show-dots" checked />
+            Show Grid Dots
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import progress overlay -->
+    <div id="import-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h2>Importing Tracks</h2>
+        <div id="import-status">Scanning...</div>
+        <div id="import-progress-bar">
+          <div id="import-progress-fill"></div>
+        </div>
+        <div id="import-detail"></div>
+        <button id="import-cancel" class="secondary-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
