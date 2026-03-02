@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicWorld26 — Mood Selector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        /* Visualizer canvas — sits behind everything */
+        #viz-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+        }
+        /* Album art background */
+        #album-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+            background-size: cover; background-position: center;
+            filter: blur(30px) brightness(0.3); opacity: 0;
+            transition: opacity 0.6s;
+        }
+        #album-bg.visible { opacity: 1; }
+
+        /* All content sits above the canvas */
+        .content-wrap { position: relative; z-index: 1; }
+
+        header {
+            text-align: center; padding: 24px 16px 8px;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #e94560, #0f3460);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header-subtitle { color: #888; font-size: 0.9rem; text-align: center; }
+
+        /* Menu button */
+        .menu-btn {
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            background: none; border: 2px solid #444; border-radius: 10px;
+            color: #ccc; font-size: 1.4rem; width: 42px; height: 42px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.3s, color 0.3s;
+        }
+        .menu-btn:hover { border-color: #e94560; color: #e94560; }
+
+        /* Menu overlay */
+        .menu-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 200;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .menu-overlay.open { opacity: 1; pointer-events: auto; }
+
+        .menu-panel {
+            position: fixed; top: 0; right: -300px; width: 280px; height: 100%;
+            background: #0f0f23; border-left: 1px solid #333;
+            z-index: 201; padding: 20px; overflow-y: auto;
+            transition: right 0.3s;
+        }
+        .menu-panel.open { right: 0; }
+
+        .menu-close {
+            background: none; border: none; color: #888; font-size: 1.5rem;
+            cursor: pointer; float: right; padding: 4px;
+        }
+        .menu-close:hover { color: #eee; }
+
+        .menu-heading {
+            font-size: 1.1rem; font-weight: 700; color: #ccc;
+            margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #333;
+        }
+        .menu-heading:first-of-type { margin-top: 8px; }
+
+        .menu-item {
+            display: flex; align-items: center; gap: 10px; padding: 12px;
+            border-radius: 10px; cursor: pointer; transition: background 0.2s;
+            margin-bottom: 4px; border: none; background: none;
+            color: #ccc; font-size: 0.95rem; width: 100%; text-align: left;
+            font-family: inherit;
+        }
+        .menu-item:hover { background: #16213e; }
+        .menu-item-icon { font-size: 1.2rem; width: 28px; text-align: center; flex-shrink: 0; }
+        .menu-item-text { flex: 1; }
+        .menu-item-desc { font-size: 0.7rem; color: #666; display: block; margin-top: 2px; }
+        .menu-item.danger { color: #e94560; }
+        .menu-item.danger:hover { background: rgba(233,69,96,0.1); }
+
+        /* Visual mode buttons */
+        .viz-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .viz-opt {
+            padding: 8px 12px; border-radius: 8px; border: 2px solid #333;
+            background: #16213e; color: #aaa; font-size: 0.8rem; cursor: pointer;
+            transition: border-color 0.3s, color 0.3s; font-family: inherit;
+        }
+        .viz-opt:hover { border-color: #555; color: #eee; }
+        .viz-opt.active { border-color: #e94560; color: #eee; }
+
+        /* Confirmation modal */
+        .confirm-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 300;
+            display: none; align-items: center; justify-content: center;
+        }
+        .confirm-overlay.open { display: flex; }
+        .confirm-box {
+            background: #16213e; border-radius: 16px; padding: 24px;
+            max-width: 340px; width: 90%; text-align: center;
+            border: 1px solid #333;
+        }
+        .confirm-box h3 { margin-bottom: 8px; font-size: 1.1rem; }
+        .confirm-box p { color: #999; font-size: 0.9rem; margin-bottom: 20px; }
+        .confirm-btns { display: flex; gap: 10px; justify-content: center; }
+        .confirm-btns button {
+            padding: 10px 24px; border-radius: 10px; border: none;
+            font-size: 0.95rem; cursor: pointer; font-family: inherit; font-weight: 600;
+        }
+        .btn-cancel { background: #333; color: #ccc; }
+        .btn-cancel:hover { background: #444; }
+        .btn-confirm-danger { background: #e94560; color: #fff; }
+        .btn-confirm-danger:hover { background: #d63050; }
+
+        /* Upload modal */
+        .upload-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 250;
+            display: none; align-items: center; justify-content: center;
+        }
+        .upload-modal-overlay.open { display: flex; }
+        .upload-modal {
+            background: #16213e; border-radius: 16px; padding: 24px;
+            max-width: 420px; width: 90%; border: 1px solid #333;
+        }
+        .upload-modal h3 { text-align: center; margin-bottom: 16px; font-size: 1.1rem; }
+
+        .upload-area {
+            border: 2px dashed #444; border-radius: 12px; padding: 24px;
+            cursor: pointer; transition: border-color 0.3s, background 0.3s;
+            text-align: center; margin-bottom: 10px;
+        }
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: #e94560; background: rgba(233,69,96,0.05);
+        }
+        .upload-area p { color: #888; font-size: 0.95rem; }
+        .upload-icon { font-size: 2rem; margin-bottom: 6px; }
+        #upload-status { margin-top: 8px; font-size: 0.85rem; color: #77dd77; min-height: 20px; text-align: center; }
+        .upload-modal-close {
+            display: block; margin: 12px auto 0; padding: 8px 24px;
+            background: #333; color: #ccc; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 0.9rem; font-family: inherit;
+        }
+        .upload-modal-close:hover { background: #444; }
+
+        /* Mood selector */
+        .mood-section { max-width: 800px; margin: 24px auto; padding: 0 16px; }
+        .mood-section h2 { text-align: center; margin-bottom: 16px; font-size: 1.2rem; color: #ccc; }
+        .mood-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+        }
+        .mood-btn {
+            border: 2px solid transparent; border-radius: 14px; padding: 16px 10px;
+            text-align: center; cursor: pointer; transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+            background: rgba(22,33,62,0.85); user-select: none; backdrop-filter: blur(4px);
+        }
+        .mood-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+        .mood-btn.active { border-color: currentColor; box-shadow: 0 0 16px rgba(255,255,255,0.1); }
+        .mood-icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+        .mood-label { font-size: 1rem; font-weight: 600; display: block; }
+        .mood-desc { font-size: 0.7rem; color: #999; margin-top: 3px; display: block; }
+
+        /* Playlist */
+        .playlist-section { max-width: 800px; margin: 24px auto; padding: 0 16px 120px; }
+        .playlist-section h2 { text-align: center; margin-bottom: 12px; font-size: 1.1rem; color: #ccc; }
+        .track-count { text-align: center; color: #666; font-size: 0.8rem; margin-bottom: 8px; }
+        .playlist-empty { text-align: center; color: #666; padding: 24px; }
+        .track-list { list-style: none; }
+        .track-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 10px; margin-bottom: 4px; background: rgba(22,33,62,0.85);
+            cursor: pointer; transition: background 0.2s; backdrop-filter: blur(4px);
+        }
+        .track-item:hover { background: rgba(26,39,68,0.9); }
+        .track-item.playing { background: rgba(15,52,96,0.9); border-left: 3px solid #e94560; }
+        .track-num { color: #666; font-size: 0.85rem; width: 22px; text-align: center; flex-shrink: 0; }
+        .track-info { flex: 1; min-width: 0; }
+        .track-title {
+            font-weight: 600; font-size: 0.95rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .track-meta { font-size: 0.7rem; color: #888; margin-top: 2px; }
+        .track-match {
+            flex-shrink: 0; font-size: 0.75rem; font-weight: 600; padding: 3px 8px;
+            border-radius: 20px; background: rgba(119,221,119,0.15); color: #77dd77;
+        }
+
+        /* Library info */
+        .library-section { max-width: 800px; margin: 20px auto; padding: 0 16px; }
+        .library-info { text-align: center; color: #666; font-size: 0.85rem; }
+
+        /* Player bar */
+        .player-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15,15,35,0.95);
+            border-top: 1px solid #333; padding: 10px 16px; display: none;
+            flex-direction: column; gap: 8px; z-index: 100; backdrop-filter: blur(10px);
+        }
+        .player-bar.visible { display: flex; }
+        .player-top { display: flex; align-items: center; gap: 12px; }
+        .player-controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .player-controls button {
+            background: none; border: none; color: #eee; font-size: 1.3rem;
+            cursor: pointer; padding: 4px; transition: color 0.2s;
+        }
+        .player-controls button:hover { color: #e94560; }
+        .player-track-name {
+            flex: 1; font-weight: 600; font-size: 0.9rem; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .player-bottom { display: flex; align-items: center; gap: 8px; }
+        .player-progress {
+            flex: 1; height: 6px; background: #333; border-radius: 3px;
+            cursor: pointer; position: relative;
+        }
+        .player-progress-fill {
+            height: 100%; background: #e94560; border-radius: 3px;
+            width: 0%; transition: width 0.1s linear;
+        }
+        .player-time { font-size: 0.7rem; color: #888; flex-shrink: 0; min-width: 32px; }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block; width: 16px; height: 16px; border: 2px solid #444;
+            border-top-color: #e94560; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- Visualizer layers -->
+<canvas id="viz-canvas"></canvas>
+<div id="album-bg"></div>
+
+<!-- All page content -->
+<div class="content-wrap">
+
+<header>
+    <h1>MusicWorld26</h1>
+    <button class="menu-btn" id="menu-btn" title="Menu">&#9776;</button>
+</header>
+<p class="header-subtitle">Pick your mood, let the vibe play</p>
+
+<!-- Library info -->
+<section class="library-section">
+    <div class="library-info" id="library-info">No tracks in library yet</div>
+</section>
+
+<!-- Mood selector -->
+<section class="mood-section">
+    <h2>How are you feeling?</h2>
+    <div class="mood-grid" id="mood-grid"></div>
+</section>
+
+<!-- Playlist -->
+<section class="playlist-section">
+    <h2 id="playlist-title">Select a mood to see your playlist</h2>
+    <div class="track-count" id="track-count"></div>
+    <ul class="track-list" id="track-list"></ul>
+    <div class="playlist-empty" id="playlist-empty"></div>
+</section>
+
+</div><!-- /content-wrap -->
+
+<!-- Player bar -->
+<div class="player-bar" id="player-bar">
+    <div class="player-top">
+        <div class="player-controls">
+            <button id="btn-prev" title="Previous">&#9198;</button>
+            <button id="btn-play" title="Play/Pause">&#9654;</button>
+            <button id="btn-next" title="Next">&#9197;</button>
+        </div>
+        <div class="player-track-name" id="player-track-name">&mdash;</div>
+    </div>
+    <div class="player-bottom">
+        <span class="player-time" id="time-elapsed">0:00</span>
+        <div class="player-progress" id="progress-bar">
+            <div class="player-progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="player-time" id="time-duration">0:00</span>
+    </div>
+</div>
+
+<!-- Menu overlay & panel -->
+<div class="menu-overlay" id="menu-overlay"></div>
+<div class="menu-panel" id="menu-panel">
+    <button class="menu-close" id="menu-close">&times;</button>
+
+    <div class="menu-heading">Library</div>
+    <button class="menu-item" id="menu-add-folder">
+        <span class="menu-item-icon">&#128193;</span>
+        <span class="menu-item-text">Add Music Folder<span class="menu-item-desc">Select a folder of audio files</span></span>
+    </button>
+    <button class="menu-item" id="menu-add-files">
+        <span class="menu-item-icon">&#127925;</span>
+        <span class="menu-item-text">Add Individual Files<span class="menu-item-desc">Pick specific audio files</span></span>
+    </button>
+    <button class="menu-item danger" id="menu-clear-library">
+        <span class="menu-item-icon">&#128465;</span>
+        <span class="menu-item-text">Clear Library<span class="menu-item-desc">Remove all tracks</span></span>
+    </button>
+
+    <div class="menu-heading">Visuals</div>
+    <div class="viz-options" id="viz-options">
+        <button class="viz-opt" data-viz="off">Off</button>
+        <button class="viz-opt" data-viz="spectrum">Spectrum</button>
+        <button class="viz-opt" data-viz="vu">VU Meters</button>
+        <button class="viz-opt" data-viz="albumart">Album Art</button>
+    </div>
+</div>
+
+<!-- Upload progress modal -->
+<div class="upload-modal-overlay" id="upload-modal-overlay">
+    <div class="upload-modal">
+        <h3>Adding Music</h3>
+        <div id="upload-status"></div>
+        <button class="upload-modal-close" id="upload-modal-close">Close</button>
+    </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-box">
+        <h3 id="confirm-title">Are you sure?</h3>
+        <p id="confirm-message">This action cannot be undone.</p>
+        <div class="confirm-btns">
+            <button class="btn-cancel" id="confirm-cancel">Cancel</button>
+            <button class="btn-confirm-danger" id="confirm-ok">Clear Library</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+<input type="file" id="file-input" accept=".mp3,.wav,.ogg,.flac,.m4a,audio/*" multiple hidden>
+
+<script>
+// ========== MOOD DEFINITIONS ==========
+const MOODS = {
+    happy: {
+        label: "Happy", description: "Upbeat and cheerful", color: "#FFD700", icon: "\u2600\uFE0F",
+        targets: { bpm: 0.6, energy: 0.65, danceability: 0.6, valence: 0.85, acousticness: 0.4 },
+        weights: { bpm: 1, energy: 1, danceability: 1, valence: 2, acousticness: 0.5 }
+    },
+    sad: {
+        label: "Sad", description: "Melancholy and reflective", color: "#4A6FA5", icon: "\uD83C\uDF27\uFE0F",
+        targets: { bpm: 0.2, energy: 0.25, danceability: 0.2, valence: 0.15, acousticness: 0.7 },
+        weights: { bpm: 1, energy: 1.5, danceability: 0.8, valence: 2, acousticness: 1 }
+    },
+    energetic: {
+        label: "Energetic", description: "High energy, get moving", color: "#FF4500", icon: "\u26A1",
+        targets: { bpm: 0.8, energy: 0.9, danceability: 0.8, valence: 0.65, acousticness: 0.15 },
+        weights: { bpm: 1.5, energy: 2, danceability: 1.5, valence: 0.5, acousticness: 1 }
+    },
+    relaxed: {
+        label: "Relaxed", description: "Calm and peaceful", color: "#77DD77", icon: "\uD83C\uDF43",
+        targets: { bpm: 0.25, energy: 0.2, danceability: 0.25, valence: 0.55, acousticness: 0.75 },
+        weights: { bpm: 1.5, energy: 2, danceability: 1, valence: 0.5, acousticness: 1.5 }
+    },
+    romantic: {
+        label: "Romantic", description: "Love and tenderness", color: "#FF69B4", icon: "\u2764\uFE0F",
+        targets: { bpm: 0.3, energy: 0.35, danceability: 0.35, valence: 0.6, acousticness: 0.65 },
+        weights: { bpm: 1, energy: 1.5, danceability: 0.8, valence: 1.5, acousticness: 1.5 }
+    },
+    angry: {
+        label: "Angry", description: "Intense and aggressive", color: "#CC0000", icon: "\uD83D\uDD25",
+        targets: { bpm: 0.75, energy: 0.9, danceability: 0.5, valence: 0.2, acousticness: 0.1 },
+        weights: { bpm: 1, energy: 2, danceability: 0.5, valence: 1.5, acousticness: 1 }
+    },
+    party: {
+        label: "Party", description: "Dance floor ready", color: "#FF00FF", icon: "\uD83C\uDF89",
+        targets: { bpm: 0.7, energy: 0.8, danceability: 0.9, valence: 0.75, acousticness: 0.1 },
+        weights: { bpm: 1, energy: 1, danceability: 2.5, valence: 1, acousticness: 1 }
+    },
+    focus: {
+        label: "Focus", description: "Concentration and study", color: "#6A5ACD", icon: "\uD83E\uDDE0",
+        targets: { bpm: 0.4, energy: 0.35, danceability: 0.3, valence: 0.45, acousticness: 0.6 },
+        weights: { bpm: 1, energy: 2, danceability: 1.5, valence: 0.5, acousticness: 1 }
+    }
+};
+
+// ========== INDEXEDDB STORAGE ==========
+const DB_NAME = "MusicWorld26";
+const DB_VERSION = 1;
+let db = null;
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains("tracks")) {
+                d.createObjectStore("tracks", { keyPath: "id", autoIncrement: true });
+            }
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function dbAdd(track) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readwrite");
+        const req = tx.objectStore("tracks").add(track);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbGetAll() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readonly");
+        const req = tx.objectStore("tracks").getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbClearAll() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("tracks", "readwrite");
+        const req = tx.objectStore("tracks").clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// ========== AUDIO ANALYSIS (Web Audio API) ==========
+async function analyzeAudio(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    let audioBuffer;
+    try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } finally {
+        audioCtx.close();
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const channelData = audioBuffer.getChannelData(0);
+    const maxSamples = Math.min(channelData.length, sampleRate * 120);
+    const samples = channelData.slice(0, maxSamples);
+
+    return {
+        bpm: Math.round(detectBPM(samples, sampleRate) * 10) / 10,
+        energy: Math.round(calcEnergy(samples) * 1000) / 1000,
+        danceability: Math.round(calcDanceability(samples, sampleRate) * 1000) / 1000,
+        valence: Math.round(calcValence(samples, sampleRate) * 1000) / 1000,
+        acousticness: Math.round(calcAcousticness(samples, sampleRate) * 1000) / 1000
+    };
+}
+
+function detectBPM(samples, sr) {
+    const winSize = Math.floor(sr * 0.02);
+    const hopSize = Math.floor(winSize / 2);
+    const energies = [];
+    for (let i = 0; i + winSize < samples.length; i += hopSize) {
+        let sum = 0;
+        for (let j = i; j < i + winSize; j++) sum += samples[j] * samples[j];
+        energies.push(sum / winSize);
+    }
+    const onsets = [];
+    for (let i = 1; i < energies.length; i++) onsets.push(Math.max(0, energies[i] - energies[i - 1]));
+    const onsetsPerSec = sr / hopSize;
+    const minLag = Math.floor(onsetsPerSec * 60 / 200);
+    const maxLag = Math.floor(onsetsPerSec * 60 / 60);
+    let bestLag = minLag, bestCorr = 0;
+    for (let lag = minLag; lag <= Math.min(maxLag, onsets.length - 1); lag++) {
+        let corr = 0;
+        const n = Math.min(onsets.length - lag, 2000);
+        for (let i = 0; i < n; i++) corr += onsets[i] * onsets[i + lag];
+        if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+    }
+    return (onsetsPerSec * 60) / bestLag;
+}
+
+function calcEnergy(samples) {
+    let sum = 0;
+    for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+    return Math.min(1.0, Math.sqrt(sum / samples.length) / 0.1);
+}
+
+function calcDanceability(samples, sr) {
+    const winSize = Math.floor(sr * 0.02);
+    const hopSize = Math.floor(winSize / 2);
+    const energies = [];
+    for (let i = 0; i + winSize < samples.length; i += hopSize) {
+        let sum = 0;
+        for (let j = i; j < i + winSize; j++) sum += samples[j] * samples[j];
+        energies.push(sum / winSize);
+    }
+    const onsetsPerSec = sr / hopSize;
+    const targetLag = Math.floor(onsetsPerSec * 0.5);
+    let peakCorr = 0, totalCorr = 0, count = 0;
+    const searchRange = Math.floor(targetLag * 0.5);
+    for (let lag = Math.max(1, targetLag - searchRange); lag <= targetLag + searchRange; lag++) {
+        let corr = 0;
+        const n = Math.min(energies.length - lag, 2000);
+        for (let i = 0; i < n; i++) corr += energies[i] * energies[i + lag];
+        if (corr > peakCorr) peakCorr = corr;
+        totalCorr += corr; count++;
+    }
+    return Math.min(1.0, (count > 0 ? peakCorr / (totalCorr / count + 1e-10) : 0) / 3.0);
+}
+
+function calcValence(samples, sr) {
+    const fftSize = 2048;
+    const numFrames = Math.min(100, Math.floor(samples.length / fftSize));
+    let brightnessSum = 0;
+    for (let f = 0; f < numFrames; f++) {
+        const offset = Math.floor((f / numFrames) * (samples.length - fftSize));
+        const frame = samples.slice(offset, offset + fftSize);
+        const numBins = 256;
+        let lowEnergy = 0, highEnergy = 0;
+        for (let k = 0; k < numBins; k++) {
+            let re = 0, im = 0;
+            for (let n = 0; n < fftSize; n++) {
+                const angle = -2 * Math.PI * k * n / fftSize;
+                re += frame[n] * Math.cos(angle);
+                im += frame[n] * Math.sin(angle);
+            }
+            const mag = Math.sqrt(re * re + im * im);
+            if ((k * sr) / fftSize < 1000) lowEnergy += mag;
+            else highEnergy += mag;
+        }
+        brightnessSum += highEnergy / (lowEnergy + highEnergy + 1e-10);
+    }
+    return Math.min(1.0, brightnessSum / numFrames * 2);
+}
+
+function calcAcousticness(samples) {
+    let zcr = 0;
+    for (let i = 1; i < samples.length; i++) {
+        if ((samples[i] >= 0) !== (samples[i - 1] >= 0)) zcr++;
+    }
+    return Math.min(1.0, Math.max(0.0, 1.0 - (zcr / samples.length) * 15));
+}
+
+// ========== ID3 ALBUM ART EXTRACTION ==========
+function extractAlbumArt(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    // Check for ID3v2 header
+    if (bytes[0] !== 0x49 || bytes[1] !== 0x44 || bytes[2] !== 0x33) return null;
+
+    const majorVersion = bytes[3];
+    const headerSize = ((bytes[6] & 0x7F) << 21) | ((bytes[7] & 0x7F) << 14) |
+                       ((bytes[8] & 0x7F) << 7) | (bytes[9] & 0x7F);
+    const end = Math.min(10 + headerSize, bytes.length);
+    let pos = 10;
+
+    // Skip extended header if present (ID3v2.3+)
+    if (bytes[5] & 0x40) {
+        const extSize = (bytes[10] << 24) | (bytes[11] << 16) | (bytes[12] << 8) | bytes[13];
+        pos += extSize + 4;
+    }
+
+    while (pos + 10 < end) {
+        const frameId = String.fromCharCode(bytes[pos], bytes[pos+1], bytes[pos+2], bytes[pos+3]);
+        let frameSize;
+        if (majorVersion === 4) {
+            frameSize = ((bytes[pos+4] & 0x7F) << 21) | ((bytes[pos+5] & 0x7F) << 14) |
+                        ((bytes[pos+6] & 0x7F) << 7) | (bytes[pos+7] & 0x7F);
+        } else {
+            frameSize = (bytes[pos+4] << 24) | (bytes[pos+5] << 16) | (bytes[pos+6] << 8) | bytes[pos+7];
+        }
+
+        if (frameSize <= 0 || pos + 10 + frameSize > end) break;
+
+        if (frameId === "APIC") {
+            let offset = pos + 10;
+            const encoding = bytes[offset++];
+            // Read MIME type
+            let mime = "";
+            while (offset < pos + 10 + frameSize && bytes[offset] !== 0) {
+                mime += String.fromCharCode(bytes[offset++]);
+            }
+            offset++; // skip null terminator
+            offset++; // skip picture type byte
+            // Skip description
+            if (encoding === 0 || encoding === 3) {
+                while (offset < pos + 10 + frameSize && bytes[offset] !== 0) offset++;
+                offset++;
+            } else {
+                while (offset + 1 < pos + 10 + frameSize && !(bytes[offset] === 0 && bytes[offset+1] === 0)) offset += 2;
+                offset += 2;
+            }
+            // Rest is image data
+            const imageData = arrayBuffer.slice(offset, pos + 10 + frameSize);
+            if (!mime || mime === "image/") mime = "image/jpeg";
+            return { data: imageData, mime: mime };
+        }
+
+        pos += 10 + frameSize;
+    }
+    return null;
+}
+
+// ========== MOOD MATCHING ==========
+function normalizeBPM(bpm) {
+    return Math.max(0, Math.min(1, (bpm - 60) / 120));
+}
+
+function scoreTrack(track, moodKey) {
+    const mood = MOODS[moodKey];
+    const features = {
+        bpm: normalizeBPM(track.bpm), energy: track.energy,
+        danceability: track.danceability, valence: track.valence, acousticness: track.acousticness
+    };
+    let total = 0;
+    for (const [feat, target] of Object.entries(mood.targets)) {
+        const diff = features[feat] - target;
+        total += mood.weights[feat] * diff * diff;
+    }
+    return Math.sqrt(total);
+}
+
+function getTracksForMood(tracks, moodKey, limit = 20) {
+    const scored = tracks.filter(t => t.analyzed)
+        .map(t => ({ ...t, _score: scoreTrack(t, moodKey) }));
+    scored.sort((a, b) => a._score - b._score);
+    return scored.slice(0, limit).map(t => ({
+        ...t, mood_score: Math.round((1 - Math.min(t._score / 2, 1)) * 100) / 100
+    }));
+}
+
+// ========== UI STATE ==========
+let currentPlaylist = [];
+let currentTrackIndex = -1;
+let isPlaying = false;
+let currentMood = null;
+let vizMode = localStorage.getItem("mw26_viz") || "off";
+let currentAlbumArtUrl = null;
+
+const audio = new Audio();
+
+// DOM refs
+const moodGrid = document.getElementById("mood-grid");
+const trackList = document.getElementById("track-list");
+const playlistTitle = document.getElementById("playlist-title");
+const playlistEmpty = document.getElementById("playlist-empty");
+const trackCount = document.getElementById("track-count");
+const fileInput = document.getElementById("file-input");
+const folderInput = document.getElementById("folder-input");
+const uploadStatus = document.getElementById("upload-status");
+const playerBar = document.getElementById("player-bar");
+const playerTrackName = document.getElementById("player-track-name");
+const btnPrev = document.getElementById("btn-prev");
+const btnPlay = document.getElementById("btn-play");
+const btnNext = document.getElementById("btn-next");
+const progressBar = document.getElementById("progress-bar");
+const progressFill = document.getElementById("progress-fill");
+const timeElapsed = document.getElementById("time-elapsed");
+const timeDuration = document.getElementById("time-duration");
+const libraryInfo = document.getElementById("library-info");
+const menuBtn = document.getElementById("menu-btn");
+const menuOverlay = document.getElementById("menu-overlay");
+const menuPanel = document.getElementById("menu-panel");
+const menuClose = document.getElementById("menu-close");
+const confirmOverlay = document.getElementById("confirm-overlay");
+const confirmCancel = document.getElementById("confirm-cancel");
+const confirmOk = document.getElementById("confirm-ok");
+const uploadModalOverlay = document.getElementById("upload-modal-overlay");
+const uploadModalClose = document.getElementById("upload-modal-close");
+const albumBg = document.getElementById("album-bg");
+const vizCanvas = document.getElementById("viz-canvas");
+const vizCtx = vizCanvas.getContext("2d");
+
+// ========== MENU ==========
+function openMenu() { menuOverlay.classList.add("open"); menuPanel.classList.add("open"); }
+function closeMenu() { menuOverlay.classList.remove("open"); menuPanel.classList.remove("open"); }
+
+menuBtn.addEventListener("click", openMenu);
+menuClose.addEventListener("click", closeMenu);
+menuOverlay.addEventListener("click", closeMenu);
+
+document.getElementById("menu-add-folder").addEventListener("click", () => { closeMenu(); folderInput.click(); });
+document.getElementById("menu-add-files").addEventListener("click", () => { closeMenu(); fileInput.click(); });
+
+// ========== CLEAR LIBRARY ==========
+document.getElementById("menu-clear-library").addEventListener("click", () => {
+    closeMenu();
+    confirmOverlay.classList.add("open");
+});
+confirmCancel.addEventListener("click", () => confirmOverlay.classList.remove("open"));
+confirmOk.addEventListener("click", async () => {
+    confirmOverlay.classList.remove("open");
+    audio.pause();
+    audio.src = "";
+    isPlaying = false;
+    currentPlaylist = [];
+    currentTrackIndex = -1;
+    currentMood = null;
+    playerBar.classList.remove("visible");
+    btnPlay.textContent = "\u25B6";
+    await dbClearAll();
+    updateLibraryCount();
+    renderMoods();
+    trackList.innerHTML = "";
+    trackCount.textContent = "";
+    playlistTitle.textContent = "Select a mood to see your playlist";
+    playlistEmpty.textContent = "";
+    albumBg.classList.remove("visible");
+    albumBg.style.backgroundImage = "";
+    currentAlbumArtUrl = null;
+});
+
+// ========== UPLOAD MODAL ==========
+function showUploadModal() { uploadModalOverlay.classList.add("open"); }
+function hideUploadModal() { uploadModalOverlay.classList.remove("open"); uploadStatus.textContent = ""; }
+uploadModalClose.addEventListener("click", hideUploadModal);
+
+// ========== VISUAL MODE ==========
+function setVizMode(mode) {
+    vizMode = mode;
+    localStorage.setItem("mw26_viz", mode);
+    document.querySelectorAll(".viz-opt").forEach(b => {
+        b.classList.toggle("active", b.dataset.viz === mode);
+    });
+    // Show/hide album bg
+    if (mode === "albumart" && currentAlbumArtUrl) {
+        albumBg.classList.add("visible");
+    } else {
+        albumBg.classList.remove("visible");
+    }
+    // Clear canvas when switching off
+    if (mode === "off") {
+        vizCtx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
+    }
+}
+
+document.querySelectorAll(".viz-opt").forEach(btn => {
+    btn.addEventListener("click", () => setVizMode(btn.dataset.viz));
+});
+
+// ========== RENDER MOODS ==========
+function renderMoods() {
+    moodGrid.innerHTML = "";
+    for (const [key, mood] of Object.entries(MOODS)) {
+        const btn = document.createElement("div");
+        btn.className = "mood-btn" + (key === currentMood ? " active" : "");
+        btn.style.color = mood.color;
+        btn.innerHTML = `
+            <span class="mood-icon">${mood.icon}</span>
+            <span class="mood-label">${mood.label}</span>
+            <span class="mood-desc">${mood.description}</span>
+        `;
+        btn.addEventListener("click", () => selectMood(key));
+        moodGrid.appendChild(btn);
+    }
+}
+
+async function selectMood(moodKey) {
+    currentMood = moodKey;
+    renderMoods();
+    const mood = MOODS[moodKey];
+    playlistTitle.textContent = mood.label + " Playlist";
+    playlistEmpty.style.display = "none";
+    trackCount.textContent = "";
+    trackList.innerHTML = '<div style="text-align:center;color:#888;padding:16px"><span class="spinner"></span>Finding tracks...</div>';
+    const allTracks = await dbGetAll();
+    const analyzed = allTracks.filter(t => t.analyzed);
+    if (analyzed.length === 0) {
+        trackList.innerHTML = "";
+        playlistEmpty.textContent = "No tracks yet. Use the menu to add music!";
+        playlistEmpty.style.display = "block";
+        return;
+    }
+    currentPlaylist = getTracksForMood(analyzed, moodKey);
+    trackCount.textContent = currentPlaylist.length + " track" + (currentPlaylist.length !== 1 ? "s" : "");
+    renderPlaylist();
+}
+
+function renderPlaylist() {
+    trackList.innerHTML = "";
+    playlistEmpty.style.display = "none";
+    currentPlaylist.forEach((track, i) => {
+        const li = document.createElement("li");
+        li.className = "track-item" + (i === currentTrackIndex ? " playing" : "");
+        li.innerHTML = `
+            <span class="track-num">${i + 1}</span>
+            <div class="track-info">
+                <div class="track-title">${track.title}</div>
+                <div class="track-meta">${track.bpm} BPM &middot; Energy ${Math.round(track.energy * 100)}%</div>
+            </div>
+            <span class="track-match">${Math.round(track.mood_score * 100)}%</span>
+        `;
+        li.addEventListener("click", () => playTrack(i));
+        trackList.appendChild(li);
+    });
+}
+
+// ========== PLAYBACK ==========
+let audioCtxLive = null;
+let analyserNode = null;
+let sourceNode = null;
+let analyserConnected = false;
+
+function ensureAnalyser() {
+    if (analyserConnected) return;
+    audioCtxLive = new (window.AudioContext || window.webkitAudioContext)();
+    analyserNode = audioCtxLive.createAnalyser();
+    analyserNode.fftSize = 256;
+    sourceNode = audioCtxLive.createMediaElementSource(audio);
+    sourceNode.connect(analyserNode);
+    analyserNode.connect(audioCtxLive.destination);
+    analyserConnected = true;
+}
+
+function playTrack(index) {
+    if (index < 0 || index >= currentPlaylist.length) return;
+    currentTrackIndex = index;
+    const track = currentPlaylist[index];
+    const blob = new Blob([track.audioData], { type: track.mimeType });
+    const url = URL.createObjectURL(blob);
+    audio.src = url;
+    ensureAnalyser();
+    if (audioCtxLive && audioCtxLive.state === "suspended") audioCtxLive.resume();
+    audio.play();
+    isPlaying = true;
+    playerTrackName.textContent = track.title;
+    btnPlay.textContent = "\u23F8";
+    playerBar.classList.add("visible");
+    renderPlaylist();
+
+    // Album art
+    if (track.albumArt) {
+        const artBlob = new Blob([track.albumArt.data], { type: track.albumArt.mime });
+        if (currentAlbumArtUrl) URL.revokeObjectURL(currentAlbumArtUrl);
+        currentAlbumArtUrl = URL.createObjectURL(artBlob);
+        albumBg.style.backgroundImage = `url(${currentAlbumArtUrl})`;
+        if (vizMode === "albumart") albumBg.classList.add("visible");
+    } else {
+        albumBg.classList.remove("visible");
+        albumBg.style.backgroundImage = "";
+        currentAlbumArtUrl = null;
+    }
+}
+
+function togglePlay() {
+    if (!audio.src) return;
+    if (audioCtxLive && audioCtxLive.state === "suspended") audioCtxLive.resume();
+    if (isPlaying) { audio.pause(); btnPlay.textContent = "\u25B6"; }
+    else { audio.play(); btnPlay.textContent = "\u23F8"; }
+    isPlaying = !isPlaying;
+}
+
+function playNext() { if (currentTrackIndex < currentPlaylist.length - 1) playTrack(currentTrackIndex + 1); }
+function playPrev() {
+    if (audio.currentTime > 3) audio.currentTime = 0;
+    else if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1);
+}
+
+btnPlay.addEventListener("click", togglePlay);
+btnNext.addEventListener("click", playNext);
+btnPrev.addEventListener("click", playPrev);
+
+audio.addEventListener("timeupdate", () => {
+    if (audio.duration) {
+        progressFill.style.width = (audio.currentTime / audio.duration * 100) + "%";
+        timeElapsed.textContent = formatTime(audio.currentTime);
+        timeDuration.textContent = formatTime(audio.duration);
+    }
+});
+audio.addEventListener("ended", playNext);
+
+progressBar.addEventListener("click", (e) => {
+    if (!audio.duration) return;
+    const rect = progressBar.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+});
+
+function formatTime(s) {
+    return Math.floor(s / 60) + ":" + Math.floor(s % 60).toString().padStart(2, "0");
+}
+
+// ========== VISUALIZER ==========
+function resizeCanvas() {
+    vizCanvas.width = window.innerWidth;
+    vizCanvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+function drawSpectrum() {
+    if (!analyserNode) return;
+    const bufLen = analyserNode.frequencyBinCount;
+    const data = new Uint8Array(bufLen);
+    analyserNode.getByteFrequencyData(data);
+
+    const w = vizCanvas.width, h = vizCanvas.height;
+    vizCtx.clearRect(0, 0, w, h);
+
+    const barCount = Math.min(bufLen, 64);
+    const barWidth = w / barCount;
+    const moodColor = currentMood ? MOODS[currentMood].color : "#e94560";
+
+    for (let i = 0; i < barCount; i++) {
+        const val = data[i] / 255;
+        const barH = val * h * 0.7;
+        const x = i * barWidth;
+
+        const grad = vizCtx.createLinearGradient(x, h, x, h - barH);
+        grad.addColorStop(0, moodColor + "CC");
+        grad.addColorStop(1, moodColor + "22");
+        vizCtx.fillStyle = grad;
+        vizCtx.fillRect(x + 1, h - barH, barWidth - 2, barH);
+    }
+
+    // Mirror reflection
+    vizCtx.globalAlpha = 0.15;
+    for (let i = 0; i < barCount; i++) {
+        const val = data[i] / 255;
+        const barH = val * h * 0.2;
+        const x = i * barWidth;
+        vizCtx.fillStyle = moodColor;
+        vizCtx.fillRect(x + 1, h, barWidth - 2, barH);
+    }
+    vizCtx.globalAlpha = 1;
+}
+
+function drawVU() {
+    if (!analyserNode) return;
+    const bufLen = analyserNode.frequencyBinCount;
+    const data = new Uint8Array(bufLen);
+    analyserNode.getByteFrequencyData(data);
+
+    // Calculate L/R levels (simulate stereo from frequency split)
+    let lowSum = 0, highSum = 0, lowCount = 0, highCount = 0;
+    for (let i = 0; i < bufLen; i++) {
+        if (i < bufLen / 2) { lowSum += data[i]; lowCount++; }
+        else { highSum += data[i]; highCount++; }
+    }
+    const leftLevel = lowCount > 0 ? lowSum / (lowCount * 255) : 0;
+    const rightLevel = highCount > 0 ? highSum / (highCount * 255) : 0;
+
+    const w = vizCanvas.width, h = vizCanvas.height;
+    vizCtx.clearRect(0, 0, w, h);
+
+    const moodColor = currentMood ? MOODS[currentMood].color : "#e94560";
+    const meterW = Math.min(w * 0.35, 200);
+    const meterH = Math.min(h * 0.4, 260);
+    const gap = 30;
+    const totalW = meterW * 2 + gap;
+    const startX = (w - totalW) / 2;
+    const startY = (h - meterH) / 2;
+
+    [leftLevel, rightLevel].forEach((level, idx) => {
+        const mx = startX + idx * (meterW + gap);
+        const my = startY;
+        const cx = mx + meterW / 2;
+        const cy = my + meterH * 0.85;
+        const radius = meterW * 0.42;
+
+        // Meter background arc
+        vizCtx.beginPath();
+        vizCtx.arc(cx, cy, radius + 8, Math.PI * 1.15, Math.PI * 1.85);
+        vizCtx.strokeStyle = "#333";
+        vizCtx.lineWidth = 4;
+        vizCtx.stroke();
+
+        // Scale markings
+        for (let i = 0; i <= 10; i++) {
+            const angle = Math.PI * 1.15 + (i / 10) * Math.PI * 0.7;
+            const innerR = radius - 5;
+            const outerR = radius + 4;
+            vizCtx.beginPath();
+            vizCtx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR);
+            vizCtx.lineTo(cx + Math.cos(angle) * outerR, cy + Math.sin(angle) * outerR);
+            vizCtx.strokeStyle = i >= 8 ? "#e94560" : "#666";
+            vizCtx.lineWidth = i % 5 === 0 ? 2 : 1;
+            vizCtx.stroke();
+        }
+
+        // Needle
+        const needleAngle = Math.PI * 1.15 + level * Math.PI * 0.7;
+        vizCtx.beginPath();
+        vizCtx.moveTo(cx, cy);
+        vizCtx.lineTo(cx + Math.cos(needleAngle) * radius, cy + Math.sin(needleAngle) * radius);
+        vizCtx.strokeStyle = level > 0.8 ? "#e94560" : moodColor;
+        vizCtx.lineWidth = 3;
+        vizCtx.lineCap = "round";
+        vizCtx.stroke();
+
+        // Center dot
+        vizCtx.beginPath();
+        vizCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+        vizCtx.fillStyle = "#eee";
+        vizCtx.fill();
+
+        // Label
+        vizCtx.fillStyle = "#888";
+        vizCtx.font = "12px 'Segoe UI', sans-serif";
+        vizCtx.textAlign = "center";
+        vizCtx.fillText(idx === 0 ? "L" : "R", cx, cy + 24);
+
+        // Glowing level bar underneath
+        const barY = my + meterH - 10;
+        const barW = meterW * 0.8;
+        const barX = mx + (meterW - barW) / 2;
+        vizCtx.fillStyle = "#222";
+        vizCtx.fillRect(barX, barY, barW, 6);
+        const grd = vizCtx.createLinearGradient(barX, barY, barX + barW * level, barY);
+        grd.addColorStop(0, moodColor + "AA");
+        grd.addColorStop(1, level > 0.8 ? "#e94560" : moodColor);
+        vizCtx.fillStyle = grd;
+        vizCtx.fillRect(barX, barY, barW * level, 6);
+    });
+
+    // VU label
+    vizCtx.fillStyle = "#555";
+    vizCtx.font = "bold 14px 'Segoe UI', sans-serif";
+    vizCtx.textAlign = "center";
+    vizCtx.fillText("VU", w / 2, startY - 10);
+}
+
+let vizAnimId = null;
+function vizLoop() {
+    vizAnimId = requestAnimationFrame(vizLoop);
+    if (!isPlaying || vizMode === "off" || vizMode === "albumart") {
+        if (vizMode === "off" || vizMode === "albumart") vizCtx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
+        return;
+    }
+    if (vizMode === "spectrum") drawSpectrum();
+    else if (vizMode === "vu") drawVU();
+}
+vizLoop();
+
+// ========== FILE HANDLING ==========
+const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.wma', '.opus', '.webm'];
+
+function isAudioFile(file) {
+    if (file.type && file.type.startsWith("audio/")) return true;
+    return AUDIO_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext));
+}
+
+folderInput.addEventListener("change", () => {
+    if (!folderInput.files.length) return;
+    const audioFiles = Array.from(folderInput.files).filter(isAudioFile);
+    if (audioFiles.length) {
+        showUploadModal();
+        uploadStatus.textContent = `Found ${audioFiles.length} audio file${audioFiles.length !== 1 ? "s" : ""} in folder...`;
+        handleFiles(audioFiles);
+    } else {
+        showUploadModal();
+        uploadStatus.textContent = `No audio files found (${folderInput.files.length} files scanned).`;
+    }
+});
+
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) {
+        showUploadModal();
+        handleFiles(fileInput.files);
+    }
+});
+
+async function handleFiles(files) {
+    const fileArray = Array.isArray(files) ? files : Array.from(files);
+    const total = fileArray.length;
+    let done = 0, failed = 0;
+
+    for (const file of fileArray) {
+        done++;
+        uploadStatus.innerHTML = `<span class="spinner"></span>Analyzing ${done}/${total}: ${file.name}...`;
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const features = await analyzeAudio(file);
+            const albumArt = extractAlbumArt(arrayBuffer);
+            const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ")
+                .replace(/\b\w/g, c => c.toUpperCase());
+
+            const track = {
+                filename: file.name,
+                title: title,
+                mimeType: file.type || "audio/mpeg",
+                audioData: arrayBuffer,
+                albumArt: albumArt,
+                bpm: features.bpm,
+                energy: features.energy,
+                danceability: features.danceability,
+                valence: features.valence,
+                acousticness: features.acousticness,
+                analyzed: true
+            };
+            await dbAdd(track);
+        } catch (err) {
+            console.error("Failed: " + file.name, err);
+            failed++;
+            uploadStatus.innerHTML = `Failed: ${file.name} - ${err.message}`;
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+
+    const added = total - failed;
+    uploadStatus.textContent = `${added} track${added !== 1 ? "s" : ""} added!` +
+        (failed > 0 ? ` (${failed} failed)` : "");
+    fileInput.value = "";
+    folderInput.value = "";
+    updateLibraryCount();
+    if (currentMood) selectMood(currentMood);
+}
+
+async function updateLibraryCount() {
+    const tracks = await dbGetAll();
+    const analyzed = tracks.filter(t => t.analyzed).length;
+    libraryInfo.textContent = analyzed === 0
+        ? "No tracks in library yet"
+        : analyzed + " track" + (analyzed !== 1 ? "s" : "") + " in your library";
+}
+
+// ========== INIT ==========
+async function init() {
+    await openDB();
+    renderMoods();
+    updateLibraryCount();
+    setVizMode(vizMode);
+}
+
+init();
+</script>
+</body>
+</html>
