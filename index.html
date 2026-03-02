@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>MusicWorld26-V01 — Mood Music Player</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d0d0d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- ========== SPLASH — tap to enter fullscreen ========== -->
+    <div id="splash">
+        <div class="splash-content">
+            <div class="splash-icon">&#9835;</div>
+            <h1 class="splash-title">MusicWorld26</h1>
+            <p class="splash-sub">Mood Music Player</p>
+            <p class="splash-tap">Tap anywhere to start</p>
+        </div>
+    </div>
+
+    <!-- Top Navigation -->
+    <nav id="menu-bar">
+        <div class="menu-brand">MusicWorld26-V01</div>
+        <button id="btn-add-music" aria-label="Add Music">&#43; Music</button>
+        <input type="file" id="add-music-input" multiple accept="audio/*" hidden>
+        <div class="menu-wrapper">
+            <button id="menu-dots" aria-label="Menu" aria-expanded="false">
+                <span class="dot-icon"></span>
+                <span class="dot-icon"></span>
+                <span class="dot-icon"></span>
+            </button>
+            <div id="menu-dropdown" class="dropdown hidden">
+                <button class="menu-btn active" data-view="mood-grid">Mood Grid</button>
+                <button class="menu-btn" data-view="browse">Browse</button>
+                <button class="menu-btn" data-view="add-tracks">Add Tracks</button>
+                <button class="menu-btn" data-view="settings">Settings</button>
+                <hr class="menu-divider">
+                <button class="menu-btn" id="btn-fullscreen">Fullscreen</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content">
+
+        <!-- ========== MOOD GRID VIEW ========== -->
+        <section id="view-mood-grid" class="view active">
+            <div id="mood-grid-wrapper">
+                <div id="mood-grid-container">
+                    <span class="axis-label label-top">Fast</span>
+                    <span class="axis-label label-bottom">Slow</span>
+                    <span class="axis-label label-left">Sad</span>
+                    <span class="axis-label label-right">Happy</span>
+                    <canvas id="mood-grid-canvas"></canvas>
+                    <div id="grid-empty-msg">
+                        <p>No tracks yet.</p>
+                        <p>Go to <strong>Add Tracks</strong> to import music.</p>
+                    </div>
+                </div>
+            </div>
+            <div id="playlist-bar">
+                <label for="playlist-size">Playlist:</label>
+                <select id="playlist-size">
+                    <option value="10">10 tracks</option>
+                    <option value="25" selected>25 tracks</option>
+                    <option value="50">50 tracks</option>
+                    <option value="0">Continuous</option>
+                </select>
+                <button id="btn-play-selection" disabled>Select a mood on the grid</button>
+            </div>
+        </section>
+
+        <!-- ========== BROWSE VIEW ========== -->
+        <section id="view-browse" class="view">
+            <div id="browse-tabs">
+                <button class="browse-tab active" data-tab="artists">Artists</button>
+                <button class="browse-tab" data-tab="albums">Albums</button>
+                <button class="browse-tab" data-tab="genres">Genres</button>
+            </div>
+            <div id="browse-content">
+                <div id="browse-list"></div>
+            </div>
+            <div id="browse-detail" class="hidden">
+                <button id="browse-back">&larr; Back</button>
+                <h3 id="browse-detail-title"></h3>
+                <div id="browse-detail-actions">
+                    <button id="browse-play-all" class="action-btn">Play All</button>
+                    <button id="browse-show-grid" class="action-btn secondary">Show on Grid</button>
+                </div>
+                <div id="browse-detail-tracks"></div>
+            </div>
+        </section>
+
+        <!-- ========== ADD TRACKS VIEW ========== -->
+        <section id="view-add-tracks" class="view">
+            <h2>Add Music</h2>
+            <div class="add-buttons">
+                <button id="btn-add-files" class="action-btn">
+                    <span class="btn-icon">&#9835;</span>
+                    Add Files
+                </button>
+                <button id="btn-add-folder" class="action-btn">
+                    <span class="btn-icon">&#128194;</span>
+                    Add Folder / Album
+                </button>
+            </div>
+            <input type="file" id="file-input" multiple accept="audio/*" hidden>
+            <input type="file" id="folder-input" webkitdirectory accept="audio/*" hidden>
+
+            <div id="analysis-progress" hidden>
+                <p id="analysis-status">Analysing…</p>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="progress-text">0 / 0</p>
+            </div>
+
+            <div id="track-list-section">
+                <h3>Library <span id="track-count">(0 tracks)</span></h3>
+                <div id="track-list"></div>
+            </div>
+        </section>
+
+        <!-- ========== SETTINGS VIEW ========== -->
+        <section id="view-settings" class="view">
+            <h2>Settings</h2>
+
+            <div class="settings-group">
+                <h3>VU Meter Style</h3>
+                <div class="meter-picker" id="meter-picker">
+                    <!-- populated by app.js with preview canvases -->
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Player Background</h3>
+                <div class="radio-group" id="bg-style-group">
+                    <label class="radio-card">
+                        <input type="radio" name="bg-style" value="artwork" checked>
+                        <span class="radio-label">Album Artwork</span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="bg-style" value="blur">
+                        <span class="radio-label">Blurred Artwork</span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="bg-style" value="dark">
+                        <span class="radio-label">Dark</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Library Maintenance</h3>
+                <div class="maintenance-buttons">
+                    <button id="btn-reanalyze" class="action-btn secondary">Re-analyse All Tracks</button>
+                    <button id="btn-clear-library" class="action-btn danger">Clear Entire Library</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ========== PLAYER OVERLAY ========== -->
+    <div id="player" class="player hidden">
+        <div id="player-bg">
+            <div id="player-bg-fill"></div>
+            <div id="player-bg-art"></div>
+        </div>
+        <div id="player-content">
+            <div id="vu-meters">
+                <canvas id="vu-canvas-left"></canvas>
+                <canvas id="vu-canvas-right"></canvas>
+            </div>
+            <div id="track-info">
+                <div id="now-playing-name">—</div>
+                <div id="now-playing-artist">—</div>
+                <div id="now-playing-album"></div>
+                <div id="now-playing-countdown">0:00</div>
+            </div>
+            <div id="player-controls">
+                <button class="ctrl-btn" id="btn-prev" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="3" height="16"/><polygon points="13,4 13,20 3,12"/><polygon points="22,4 22,20 12,12"/></svg></button>
+                <button class="ctrl-btn big" id="btn-play-pause" title="Play / Pause"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg></button>
+                <button class="ctrl-btn" id="btn-next" title="Next"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="2,4 12,12 2,20"/><polygon points="11,4 21,12 11,20"/><rect x="19" y="4" width="3" height="16"/></svg></button>
+                <button class="ctrl-btn" id="btn-stop" title="Stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></button>
+                <button class="ctrl-btn" id="btn-minimize" title="Minimise player"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="4,8 20,8 12,18"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== LANDSCAPE IDLE (shown in landscape when nothing plays) ========== -->
+    <div id="landscape-idle" class="landscape-idle hidden">
+        <p>&#9835; Turn to portrait to browse &amp; select music</p>
+    </div>
+
+    <!-- ========== MINI PLAYER BAR ========== -->
+    <div id="mini-player" class="mini-player hidden">
+        <div class="mini-info">
+            <span id="mini-track-name">—</span>
+            <span id="mini-track-artist">—</span>
+        </div>
+        <div class="mini-controls">
+            <button class="mini-btn" id="mini-prev"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="2" y="4" width="3" height="16"/><polygon points="13,4 13,20 3,12"/><polygon points="22,4 22,20 12,12"/></svg></button>
+            <button class="mini-btn" id="mini-play-pause"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="6,3 21,12 6,21"/></svg></button>
+            <button class="mini-btn" id="mini-next"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="2,4 12,12 2,20"/><polygon points="11,4 21,12 11,20"/><rect x="19" y="4" width="3" height="16"/></svg></button>
+            <button class="mini-btn" id="mini-expand" title="Expand player"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="4,16 20,16 12,6"/></svg></button>
+        </div>
+    </div>
+
+    <script src="js/library.js?v=2"></script>
+    <script src="js/analyzer.js"></script>
+    <script src="js/moodGrid.js"></script>
+    <script src="js/vuMeters.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
