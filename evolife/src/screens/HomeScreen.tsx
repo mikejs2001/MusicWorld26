@@ -16,8 +16,15 @@ export default function HomeScreen() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const titleSlide = useRef(new Animated.Value(-20)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    Animated.parallel([
+      Animated.timing(titleSlide, { toValue: 0, duration: 550, useNativeDriver: true }),
+      Animated.timing(titleOpacity, { toValue: 1, duration: 550, useNativeDriver: true }),
+    ]).start();
+
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
@@ -48,8 +55,10 @@ export default function HomeScreen() {
     <LinearGradient colors={[colorA, colorB]} style={styles.gradient}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <Text style={styles.title}>EvoLife</Text>
-          <Text style={styles.subtitle}>Survive. Adapt. Evolve.</Text>
+          <Animated.View style={{ transform: [{ translateY: titleSlide }], opacity: titleOpacity }}>
+            <Text style={styles.title}>EvoLife</Text>
+            <Text style={styles.subtitle}>Survive. Adapt. Evolve.</Text>
+          </Animated.View>
 
           <View style={styles.creatureContainer}>
             <Animated.Text

@@ -24,16 +24,46 @@ export default function EvolvedScreen() {
   const glowOpacity = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
 
+  const sparkleAnims = useRef(
+    Array.from({ length: 6 }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+      scale: new Animated.Value(0.5),
+    }))
+  ).current;
+
   useEffect(() => {
-    // Sequence: old creature fades/shrinks → glow → new creature bursts in
+    const angles = [0, 60, 120, 180, 240, 300];
+    const sparkleBurst = Animated.stagger(
+      40,
+      sparkleAnims.map((anim, i) => {
+        const rad = (angles[i] * Math.PI) / 180;
+        return Animated.parallel([
+          Animated.timing(anim.opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+          Animated.timing(anim.scale, { toValue: 1.2, duration: 200, useNativeDriver: true }),
+          Animated.timing(anim.x, { toValue: Math.cos(rad) * 80, duration: 600, useNativeDriver: true }),
+          Animated.timing(anim.y, { toValue: Math.sin(rad) * 80, duration: 600, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.delay(300),
+            Animated.timing(anim.opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          ]),
+        ]);
+      })
+    );
+
+    // Sequence: old creature fades/shrinks → glow + sparkles → new creature bursts in
     Animated.sequence([
       // Old creature shrinks out
       Animated.parallel([
         Animated.timing(prevScale, { toValue: 0.3, duration: 600, useNativeDriver: true }),
         Animated.timing(prevOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
       ]),
-      // Glow pulse
-      Animated.timing(glowOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      // Glow pulse + sparkle burst
+      Animated.parallel([
+        Animated.timing(glowOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        sparkleBurst,
+      ]),
       Animated.timing(glowOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
       // New creature bursts in
       Animated.parallel([
@@ -73,6 +103,24 @@ export default function EvolvedScreen() {
             >
               {currentStage.emoji}
             </Animated.Text>
+
+            {sparkleAnims.map((anim, i) => (
+              <Animated.Text
+                key={`sparkle-${i}`}
+                style={{
+                  position: 'absolute',
+                  fontSize: 20,
+                  opacity: anim.opacity,
+                  transform: [
+                    { translateX: anim.x },
+                    { translateY: anim.y },
+                    { scale: anim.scale },
+                  ],
+                }}
+              >
+                ✨
+              </Animated.Text>
+            ))}
           </View>
 
           <Animated.View style={[styles.titleBlock, { opacity: titleOpacity }]}>

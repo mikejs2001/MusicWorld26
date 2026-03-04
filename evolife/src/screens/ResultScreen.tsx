@@ -18,6 +18,13 @@ export default function ResultScreen() {
 
   const titleScale = useRef(new Animated.Value(0)).current;
   const listOpacity = useRef(new Animated.Value(0)).current;
+  const creatureBounce = useRef(new Animated.Value(1)).current;
+  const rowAnims = useRef(
+    state.challengeResults.map(() => ({
+      translateX: new Animated.Value(-30),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
 
   const successCount = state.challengeResults.filter((r) => r.success).length;
   const totalCount = state.challengeResults.length;
@@ -32,8 +39,26 @@ export default function ResultScreen() {
   useEffect(() => {
     Animated.sequence([
       Animated.spring(titleScale, { toValue: 1, friction: 5, useNativeDriver: true }),
-      Animated.timing(listOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(listOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.stagger(
+          110,
+          rowAnims.map((a) =>
+            Animated.parallel([
+              Animated.timing(a.translateX, { toValue: 0, duration: 350, useNativeDriver: true }),
+              Animated.timing(a.opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+            ])
+          )
+        ),
+      ]),
     ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(creatureBounce, { toValue: 1.12, duration: 700, useNativeDriver: true }),
+        Animated.timing(creatureBounce, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
   return (
@@ -48,27 +73,37 @@ export default function ResultScreen() {
               : '💀 Trials Failed'}
           </Animated.Text>
 
-          <Text style={styles.creature}>{currentStage.emoji}</Text>
+          <Animated.Text style={[styles.creature, { transform: [{ scale: creatureBounce }] }]}>
+            {currentStage.emoji}
+          </Animated.Text>
 
           <Animated.View style={[styles.summary, { opacity: listOpacity }]}>
             <Text style={styles.summaryTitle}>Trial Results</Text>
             {state.challengeResults.map((r, i) => (
-              <View key={i} style={styles.resultRow}>
-                <Text style={styles.resultEmoji}>{r.challenge.emoji}</Text>
-                <View style={styles.resultInfo}>
-                  <Text style={styles.resultName}>{r.challenge.name}</Text>
-                  <Text
-                    style={[
-                      styles.resultOutcome,
-                      r.success ? styles.outcomeSuccess : styles.outcomeFail,
-                    ]}
-                  >
-                    {r.success
-                      ? `✓ Adapted  +${r.evolutionPointsGained} ⚡`
-                      : '✗ Failed  +0 ⚡'}
-                  </Text>
+              <Animated.View
+                key={i}
+                style={{
+                  transform: [{ translateX: rowAnims[i].translateX }],
+                  opacity: rowAnims[i].opacity,
+                }}
+              >
+                <View style={styles.resultRow}>
+                  <Text style={styles.resultEmoji}>{r.challenge.emoji}</Text>
+                  <View style={styles.resultInfo}>
+                    <Text style={styles.resultName}>{r.challenge.name}</Text>
+                    <Text
+                      style={[
+                        styles.resultOutcome,
+                        r.success ? styles.outcomeSuccess : styles.outcomeFail,
+                      ]}
+                    >
+                      {r.success
+                        ? `✓ Adapted  +${r.evolutionPointsGained} ⚡`
+                        : '✗ Failed  +0 ⚡'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              </Animated.View>
             ))}
 
             <View style={styles.divider} />

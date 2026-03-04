@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '../context/GameContext';
@@ -19,15 +20,39 @@ export default function ChallengeSelectScreen() {
 
   const available = getChallengesForStage(state.stageIndex);
 
-  const toggle = (challenge: Challenge) => {
+  const cardAnims = useRef(
+    available.map(() => ({
+      translateY: new Animated.Value(40),
+      opacity: new Animated.Value(0),
+      scale: new Animated.Value(1),
+    }))
+  ).current;
+
+  useEffect(() => {
+    Animated.stagger(
+      70,
+      cardAnims.map((anim) =>
+        Animated.parallel([
+          Animated.timing(anim.translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+          Animated.timing(anim.opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        ])
+      )
+    ).start();
+  }, []);
+
+  const toggle = (challenge: Challenge, idx: number) => {
     setSelected((prev) => {
       const isSelected = prev.some((c) => c.id === challenge.id);
-      if (isSelected) {
-        return prev.filter((c) => c.id !== challenge.id);
-      }
+      if (isSelected) return prev.filter((c) => c.id !== challenge.id);
       if (prev.length >= MAX_SELECTIONS) return prev;
       return [...prev, challenge];
     });
+
+    const anim = cardAnims[idx];
+    Animated.sequence([
+      Animated.timing(anim.scale, { toValue: 0.93, duration: 80, useNativeDriver: true }),
+      Animated.spring(anim.scale, { toValue: 1, friction: 5, useNativeDriver: true }),
+    ]).start();
   };
 
   const isSelected = (id: string) => selected.some((c) => c.id === id);
@@ -57,31 +82,39 @@ export default function ChallengeSelectScreen() {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         >
-          {available.map((challenge) => {
+          {available.map((challenge, idx) => {
             const sel = isSelected(challenge.id);
             const diff = difficultyLabel(challenge.difficulty);
+            const anim = cardAnims[idx];
             return (
-              <TouchableOpacity
+              <Animated.View
                 key={challenge.id}
-                onPress={() => toggle(challenge)}
-                activeOpacity={0.8}
-                style={[styles.card, sel && styles.cardSelected]}
+                style={{
+                  transform: [{ translateY: anim.translateY }, { scale: anim.scale }],
+                  opacity: anim.opacity,
+                }}
               >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.challengeEmoji}>{challenge.emoji}</Text>
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.challengeName}>{challenge.name}</Text>
-                    <View style={styles.badges}>
-                      <Text style={[styles.badge, { color: diff.color, borderColor: diff.color }]}>
-                        {diff.text}
-                      </Text>
-                      <Text style={styles.reward}>⚡+{challenge.evolutionReward}</Text>
+                <TouchableOpacity
+                  onPress={() => toggle(challenge, idx)}
+                  activeOpacity={0.85}
+                  style={[styles.card, sel && styles.cardSelected]}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.challengeEmoji}>{challenge.emoji}</Text>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.challengeName}>{challenge.name}</Text>
+                      <View style={styles.badges}>
+                        <Text style={[styles.badge, { color: diff.color, borderColor: diff.color }]}>
+                          {diff.text}
+                        </Text>
+                        <Text style={styles.reward}>⚡+{challenge.evolutionReward}</Text>
+                      </View>
                     </View>
+                    {sel && <Text style={styles.checkmark}>✓</Text>}
                   </View>
-                  {sel && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.challengeDesc}>{challenge.description}</Text>
-              </TouchableOpacity>
+                  <Text style={styles.challengeDesc}>{challenge.description}</Text>
+                </TouchableOpacity>
+              </Animated.View>
             );
           })}
         </ScrollView>
