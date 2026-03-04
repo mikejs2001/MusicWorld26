@@ -23,6 +23,7 @@ export type GameState = {
   currentChallengeIndex: number;
   challengeResults: ChallengeResult[];
   totalSuccesses: number;
+  tapBonus: number;
 };
 
 const initialState: GameState = {
@@ -33,6 +34,7 @@ const initialState: GameState = {
   currentChallengeIndex: 0,
   challengeResults: [],
   totalSuccesses: 0,
+  tapBonus: 0,
 };
 
 type Action =
@@ -44,6 +46,7 @@ type Action =
   | { type: 'SHOW_RESULT' }
   | { type: 'EVOLVE' }
   | { type: 'CONTINUE_TO_NEXT_ROUND' }
+  | { type: 'ADD_TAP_BONUS'; points: number }
   | { type: 'RESET' };
 
 function reducer(state: GameState, action: Action): GameState {
@@ -55,6 +58,7 @@ function reducer(state: GameState, action: Action): GameState {
         selectedChallenges: [],
         currentChallengeIndex: 0,
         challengeResults: [],
+        tapBonus: 0,
       };
 
     case 'SELECT_CHALLENGES':
@@ -107,6 +111,13 @@ function reducer(state: GameState, action: Action): GameState {
       };
     }
 
+    case 'ADD_TAP_BONUS':
+      return {
+        ...state,
+        evolutionPoints: state.evolutionPoints + action.points,
+        tapBonus: state.tapBonus + action.points,
+      };
+
     case 'CONTINUE_TO_NEXT_ROUND':
       return {
         ...state,
@@ -114,6 +125,7 @@ function reducer(state: GameState, action: Action): GameState {
         selectedChallenges: [],
         currentChallengeIndex: 0,
         challengeResults: [],
+        tapBonus: 0,
       };
 
     case 'RESET':

@@ -42,11 +42,11 @@ export default function HomeScreen() {
 
   const stageColors: Record<string, [string, string]> = {
     primordial: ['#0d1b2a', '#1a3a4a'],
-    aquatic: ['#0a2a4a', '#1a5276'],
-    terrestrial: ['#1a3a1a', '#2e7d32'],
-    primate: ['#2d1b0e', '#5d4037'],
-    civilization: ['#1a1a2e', '#16213e'],
-    beyond: ['#0d0d1a', '#1a0a2e'],
+    marine:     ['#0a1530', '#0d3460'],
+    aquatic:    ['#0a2a4a', '#1a5276'],
+    terrestrial:['#1a3a1a', '#2e7d32'],
+    primate:    ['#2d1b0e', '#5d4037'],
+    beyond:     ['#0d0d1a', '#1a0a2e'],
   };
 
   const [colorA, colorB] = stageColors[currentStage.category] ?? ['#0d0d0d', '#1a1a1a'];
@@ -79,6 +79,12 @@ export default function HomeScreen() {
           <Text style={styles.stageName}>{currentStage.name}</Text>
           <Text style={styles.stageDesc}>{currentStage.description}</Text>
           <Text style={styles.environment}>📍 {currentStage.environment}</Text>
+
+          <View style={styles.milestonesBox}>
+            {currentStage.milestones.map((m, i) => (
+              <Text key={i} style={styles.milestone}>· {m}</Text>
+            ))}
+          </View>
 
           <View style={styles.progressSection}>
             <View style={styles.stageIndicator}>
@@ -163,7 +169,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7fb3d3',
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 10,
+  },
+  milestonesBox: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+    alignSelf: 'stretch',
+  },
+  milestone: {
+    color: '#88bbdd',
+    fontSize: 12,
+    lineHeight: 20,
   },
   progressSection: {
     width: '100%',
