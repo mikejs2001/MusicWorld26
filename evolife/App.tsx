@@ -5,6 +5,7 @@ import ChallengeSelectScreen from './src/screens/ChallengeSelectScreen';
 import EvolutionSceneScreen from './src/screens/EvolutionSceneScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import EvolvedScreen from './src/screens/EvolvedScreen';
+import GameCompleteScreen from './src/screens/GameCompleteScreen';
 
 function GameNavigator() {
   const { state } = useGame();
@@ -20,6 +21,8 @@ function GameNavigator() {
       return <ResultScreen />;
     case 'evolved':
       return <EvolvedScreen />;
+    case 'game-complete':
+      return <GameCompleteScreen />;
     default:
       return <HomeScreen />;
   }

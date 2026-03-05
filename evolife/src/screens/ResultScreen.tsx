@@ -34,6 +34,7 @@ export default function ResultScreen() {
   );
 
   const canEvolve = state.evolutionPoints >= currentStage.evolvesAt;
+  const isLastStage = state.stageIndex === EVOLUTION_STAGES.length - 1;
   const nextStage = EVOLUTION_STAGES[state.stageIndex + 1];
 
   useEffect(() => {
@@ -139,7 +140,24 @@ export default function ResultScreen() {
             />
           </View>
 
-          {canEvolve && nextStage ? (
+          {canEvolve && isLastStage ? (
+            <View style={[styles.evolutionCallout, styles.transcendenceCallout]}>
+              <Text style={[styles.evolutionCalloutTitle, styles.transcendenceTitle]}>
+                ✨ Transcendence Awaits
+              </Text>
+              <Text style={styles.evolutionCalloutText}>
+                You have mastered the cosmos. The final boundary is ready to dissolve.
+              </Text>
+              <Text style={styles.nextCreature}>🌌</Text>
+              <TouchableOpacity
+                style={[styles.evolveButton, styles.transcendenceButton]}
+                onPress={() => dispatch({ type: 'EVOLVE' })}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.evolveButtonText}>✨ Transcend</Text>
+              </TouchableOpacity>
+            </View>
+          ) : canEvolve && nextStage ? (
             <View style={styles.evolutionCallout}>
               <Text style={styles.evolutionCalloutTitle}>🧬 Evolution Ready!</Text>
               <Text style={styles.evolutionCalloutText}>
@@ -159,7 +177,8 @@ export default function ResultScreen() {
           ) : (
             <View style={styles.continueSection}>
               <Text style={styles.continueHint}>
-                {currentStage.evolvesAt - state.evolutionPoints} more points needed to evolve
+                {currentStage.evolvesAt - state.evolutionPoints} more points needed to{' '}
+                {isLastStage ? 'transcend' : 'evolve'}
               </Text>
               <TouchableOpacity
                 style={styles.continueButton}
@@ -309,5 +328,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  transcendenceCallout: {
+    backgroundColor: 'rgba(124,58,237,0.12)',
+    borderColor: '#a78bfa',
+  },
+  transcendenceTitle: {
+    color: '#a78bfa',
+  },
+  transcendenceButton: {
+    backgroundColor: '#7c3aed',
+    shadowColor: '#7c3aed',
   },
 });

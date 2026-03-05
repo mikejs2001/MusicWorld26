@@ -7,7 +7,8 @@ export type GamePhase =
   | 'challenge-select'
   | 'evolution-scene'
   | 'result'
-  | 'evolved';
+  | 'evolved'
+  | 'game-complete';
 
 export type ChallengeResult = {
   challenge: Challenge;
@@ -45,6 +46,7 @@ type Action =
   | { type: 'NEXT_CHALLENGE' }
   | { type: 'SHOW_RESULT' }
   | { type: 'EVOLVE' }
+  | { type: 'GAME_COMPLETE' }
   | { type: 'CONTINUE_TO_NEXT_ROUND' }
   | { type: 'ADD_TAP_BONUS'; points: number }
   | { type: 'RESET' };
@@ -96,6 +98,12 @@ function reducer(state: GameState, action: Action): GameState {
     case 'EVOLVE': {
       const currentStage = EVOLUTION_STAGES[state.stageIndex];
       const shouldEvolve = state.evolutionPoints >= currentStage.evolvesAt;
+      const isLastStage = state.stageIndex === EVOLUTION_STAGES.length - 1;
+
+      if (shouldEvolve && isLastStage) {
+        return { ...state, phase: 'game-complete' };
+      }
+
       const nextStageIndex = shouldEvolve
         ? Math.min(state.stageIndex + 1, EVOLUTION_STAGES.length - 1)
         : state.stageIndex;
@@ -110,6 +118,9 @@ function reducer(state: GameState, action: Action): GameState {
         evolutionPoints: remainingPoints,
       };
     }
+
+    case 'GAME_COMPLETE':
+      return { ...state, phase: 'game-complete' };
 
     case 'ADD_TAP_BONUS':
       return {

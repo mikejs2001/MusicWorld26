@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '../context/GameContext';
+import { EVOLUTION_STAGES } from '../data/creatures';
 import EvolutionBar from '../components/EvolutionBar';
 
 export default function HomeScreen() {
@@ -89,7 +90,7 @@ export default function HomeScreen() {
           <View style={styles.progressSection}>
             <View style={styles.stageIndicator}>
               <Text style={styles.stageLabel}>
-                Stage {state.stageIndex + 1} of {10}
+                Stage {state.stageIndex + 1} of {EVOLUTION_STAGES.length}
               </Text>
               <Text style={styles.pointsLabel}>
                 ⚡ {state.evolutionPoints} / {currentStage.evolvesAt} evolution points
@@ -110,6 +111,16 @@ export default function HomeScreen() {
             <Text style={styles.stats}>
               🏆 Total Adaptations: {state.totalSuccesses}
             </Text>
+          )}
+
+          {(state.stageIndex > 0 || state.totalSuccesses > 0) && (
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() => dispatch({ type: 'RESET' })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.resetText}>↺ New Game</Text>
+            </TouchableOpacity>
           )}
         </View>
       </SafeAreaView>
@@ -221,6 +232,15 @@ const styles = StyleSheet.create({
   stats: {
     marginTop: 20,
     color: '#f1c40f',
+    fontSize: 13,
+  },
+  resetButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  resetText: {
+    color: '#556677',
     fontSize: 13,
   },
 });

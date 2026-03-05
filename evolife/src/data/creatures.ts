@@ -127,7 +127,7 @@ export const EVOLUTION_STAGES: EvolutionStage[] = [
     description:
       'Consciousness unbound from flesh. You are no longer on the planet — you are the universe quietly observing itself.',
     environment: 'The Infinite Cosmos',
-    evolvesAt: 999,
+    evolvesAt: 12,
     category: 'beyond',
     milestones: ['Biology transcended', 'Pure energy consciousness', 'Temporal perception unlocked'],
   },

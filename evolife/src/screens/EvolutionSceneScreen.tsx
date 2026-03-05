@@ -39,6 +39,11 @@ export default function EvolutionSceneScreen() {
   // Stable ref for tap count — safe inside setTimeout closures
   const totalTapsRef = useRef(0);
 
+  // Determine success/failure per challenge using difficulty-based RNG.
+  // Uses refs so the value is stable across re-renders but recomputed for each new challenge.
+  const willSucceedRef = useRef<boolean>(true);
+  const resolvedChallengeIdRef = useRef<string>('');
+
   // Creature animations
   const creatureScale = useRef(new Animated.Value(1)).current;
   const creatureX = useRef(new Animated.Value(0)).current;
@@ -55,9 +60,20 @@ export default function EvolutionSceneScreen() {
 
   if (!currentChallenge) return null;
 
-  const attempts: AttemptScript[] = currentChallenge.attempts;
-  const finalOutcome = attempts[attempts.length - 1].outcome;
-  const success = finalOutcome === 'success';
+  // Recompute success probability once per unique challenge
+  if (resolvedChallengeIdRef.current !== currentChallenge.id) {
+    const successRate: Record<1 | 2 | 3, number> = { 1: 0.78, 2: 0.55, 3: 0.35 };
+    willSucceedRef.current = Math.random() < successRate[currentChallenge.difficulty];
+    resolvedChallengeIdRef.current = currentChallenge.id;
+  }
+
+  const success = willSucceedRef.current;
+  const attempts: AttemptScript[] = success
+    ? currentChallenge.attempts
+    : [
+        ...currentChallenge.attempts.slice(0, -1),
+        { text: currentChallenge.failureNarrative, outcome: 'fail' as const },
+      ];
 
   // ─── Creature animations ────────────────────────────────────────────────────
 
