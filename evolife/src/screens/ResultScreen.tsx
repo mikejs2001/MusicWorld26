@@ -119,12 +119,6 @@ export default function ResultScreen() {
               <Text style={styles.scoreLabel}>Points earned this round</Text>
               <Text style={[styles.scoreValue, { color: '#f1c40f' }]}>⚡ {pointsEarned}</Text>
             </View>
-            {state.tapBonus > 0 && (
-              <View style={styles.scoreRow}>
-                <Text style={styles.scoreLabel}>⚡ Adaptive boost (tapping)</Text>
-                <Text style={[styles.scoreValue, { color: '#a78bfa' }]}>+{state.tapBonus}</Text>
-              </View>
-            )}
             <View style={styles.scoreRow}>
               <Text style={styles.scoreLabel}>Total evolution points</Text>
               <Text style={[styles.scoreValue, { color: '#3498db' }]}>
