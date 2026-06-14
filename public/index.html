@@ -18,21 +18,21 @@
 
   <main class="dj-main">
 
-    <!-- ── Queue ───────────────────────────── -->
-    <section class="panel queue-panel">
-      <h2>Queue</h2>
+    <!-- ── Ready to Play (Left) ──────────────────────────── -->
+    <section class="panel ready-panel">
+      <h2>Ready to Play</h2>
       <div id="queue-list" class="queue-list"></div>
     </section>
 
-    <!-- ── Player ──────────────────────────── -->
+    <!-- ── Player (Centre) ───────────────────────────────── -->
     <section class="panel player-panel">
       <div class="now-playing">
         <div id="np-artist" class="np-artist"></div>
-        <div id="np-title"  class="np-title">No song loaded</div>
+        <div id="np-title"  class="np-title">Select a track to play</div>
         <div id="lyrics-status" class="lyrics-status"></div>
       </div>
 
-      <!-- Lyrics match info (shown when lyrics are found — lets user verify) -->
+      <!-- Lyrics match info (shown when lyrics are found) -->
       <div id="lyrics-match" class="lyrics-match" hidden>
         <div class="match-row">
           <span class="match-label">Matched:</span>
@@ -44,7 +44,7 @@
         <button id="btn-wrong-lyrics" class="btn btn-sm">✗ Wrong song? Search again</button>
       </div>
 
-      <!-- Manual lyrics search (shown when lyrics not found or wrong match) -->
+      <!-- Manual lyrics override -->
       <div id="lyrics-edit" class="lyrics-edit" hidden>
         <input type="text" id="edit-artist" class="url-input" placeholder="Artist name">
         <input type="text" id="edit-title"  class="url-input" placeholder="Song title">
@@ -75,9 +75,9 @@
       </div>
     </section>
 
-    <!-- ── Add Song ─────────────────────────── -->
-    <section class="panel add-panel">
-      <h2>Add Song</h2>
+    <!-- ── Add / Loading (Right) ─────────────────────────── -->
+    <section class="panel loading-panel">
+      <h2>Add Tracks</h2>
 
       <div class="add-section">
         <h3>📁 Local Files</h3>
@@ -93,14 +93,19 @@
       <div class="add-section">
         <h3>▶️ YouTube</h3>
         <input type="text" id="yt-url" class="url-input" placeholder="Paste YouTube URL…">
-        <button id="btn-add-yt" class="btn btn-primary">Add to Queue</button>
-        <span id="add-msg" style="font-size:0.7rem;color:#f87171;height:1em"></span>
+        <button id="btn-add-yt" class="btn btn-primary">Add</button>
+        <span id="add-msg" style="font-size:0.7rem;color:#f87171;min-height:1em;display:block"></span>
+      </div>
+
+      <div class="loading-section">
+        <h3>Processing</h3>
+        <div id="loading-list" class="loading-list"></div>
       </div>
     </section>
 
   </main>
 
-  <!-- Lyrics preview for DJ reference -->
+  <!-- Lyrics preview bar for DJ reference -->
   <div class="lyrics-preview">
     <div id="lp-prev"    class="lp-line lp-prev"></div>
     <div id="lp-current" class="lp-line lp-current"></div>
