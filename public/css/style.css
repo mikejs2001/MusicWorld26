@@ -500,6 +500,29 @@ body.display-body {
   backdrop-filter: blur(6px);
 }
 
+/* ── Toast notification ──────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #18183a;
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 10px 20px;
+  border-radius: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 999;
+  white-space: nowrap;
+}
+.toast.toast-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ── Responsive (portrait tablet) ────────────────────────── */
 @media (max-width: 700px) {
   .dj-main { grid-template-columns: 1fr; grid-template-rows: auto; }

@@ -275,14 +275,23 @@ async function fetchLyrics(title, artist, dur) {
       r = await fetch(`/api/lyrics?${p2}`);
     }
 
-    // 3. Search fallback
+    // 3. Structured search fallback — keeps artist separate so LRCLIB filters properly
     if (!r.ok) {
-      const q = [artist, title].filter(Boolean).join(' ');
-      r = await fetch(`/api/lyrics/search?q=${encodeURIComponent(q)}`);
+      const sp = new URLSearchParams({ track_name: title });
+      if (artist) sp.set('artist_name', artist);
+      r = await fetch(`/api/lyrics/search?${sp}`);
+      // If structured search finds nothing and we had an artist, try title-only search
       if (r.ok) {
-        const results = await r.json();
+        let results = await r.json();
+        if (!results.length && artist) {
+          const r2 = await fetch(`/api/lyrics/search?track_name=${encodeURIComponent(title)}`);
+          if (r2.ok) results = await r2.json();
+        }
         if (results.length) {
-          const best = results[0];
+          // Prefer result where artist matches (case-insensitive)
+          const artistLower = (artist || '').toLowerCase();
+          const best = results.find(x => (x.artistName || '').toLowerCase().includes(artistLower))
+                    || results[0];
           const lines = best.syncedLyrics ? parseLRC(best.syncedLyrics) : plainLines(best.plainLyrics);
           return { lines, meta: { trackName: best.trackName, artistName: best.artistName } };
         }
@@ -530,6 +539,7 @@ async function browseDir(pathArg) {
     const addAllEl = listEl.querySelector('.bi-add-all');
     if (addAllEl) addAllEl.addEventListener('click', () => {
       browseFiles.forEach(f => addStreamFile(f.path, f.name));
+      showToast(`Added ${browseFiles.length} track${browseFiles.length > 1 ? 's' : ''} to queue`);
     });
   } catch (e) {
     listEl.innerHTML = '<p class="empty-msg">Error reading folder</p>';
@@ -548,12 +558,14 @@ async function addFolderToQueue(btn, folderPath) {
   btn.textContent = '…';
   try {
     const r = await fetch(`/api/browse?path=${encodeURIComponent(folderPath)}`);
-    if (!r.ok) { btn.textContent = '!'; return; }
+    if (!r.ok) { btn.textContent = '✗'; setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000); return; }
     const data = await r.json();
+    if (!data.files.length) { showToast('No audio files found in that folder'); btn.textContent = orig; btn.disabled = false; return; }
     data.files.forEach(f => addStreamFile(f.path, f.name));
     btn.textContent = `+${data.files.length}`;
+    showToast(`Added ${data.files.length} track${data.files.length > 1 ? 's' : ''} to queue`);
   } catch (_) {
-    btn.textContent = '!';
+    btn.textContent = '✗';
   } finally {
     setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
   }
@@ -592,6 +604,15 @@ function esc(s) {
 function showMsg(id, text) {
   const el = document.getElementById(id);
   if (el) { el.textContent = text; setTimeout(() => el.textContent = '', 3000); }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('toast-show'));
+  setTimeout(() => { t.classList.remove('toast-show'); setTimeout(() => t.remove(), 400); }, 2800);
 }
 
 // ── Init ─────────────────────────────────────────────────────
