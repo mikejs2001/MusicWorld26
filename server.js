@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { parseFile } = require('music-metadata');
 
 const app = express();
 const server = http.createServer(app);
@@ -123,6 +124,24 @@ app.get('/api/browse', (req, res) => {
       parent: isAllowedPath(parent) && parent !== target ? parent : null,
       dirs,
       files,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Read ID3/audio tags from a file
+app.get('/api/metadata', async (req, res) => {
+  const filePath = path.resolve(expandHome(decodeURIComponent(req.query.path || '')));
+  if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'Access denied' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Not found' });
+  try {
+    const meta = await parseFile(filePath, { duration: true, skipCovers: true });
+    res.json({
+      title:    meta.common.title    || null,
+      artist:   meta.common.artist   || null,
+      album:    meta.common.album    || null,
+      duration: meta.format.duration || null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

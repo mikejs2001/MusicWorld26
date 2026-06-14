@@ -549,7 +549,44 @@ async function browseDir(pathArg) {
 function addStreamFile(filePath, fileName) {
   const { artist, title } = parseFilename(fileName);
   const url = `/api/stream?path=${encodeURIComponent(filePath)}`;
-  addToQueue({ type: 'local', file: null, url, title, artist, duration: 0 });
+  const item = { type: 'local', file: null, url, title, artist, duration: 0 };
+  addToQueue(item);
+
+  // Enrich with ID3 tags — overwrites filename parse and re-fetches lyrics if artist/title improved
+  fetch(`/api/metadata?path=${encodeURIComponent(filePath)}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(meta => {
+      if (!meta) return;
+      const newTitle  = meta.title  || title;
+      const newArtist = meta.artist || artist;
+      const improved  = newTitle !== title || newArtist !== artist;
+      item.title    = newTitle;
+      item.artist   = newArtist;
+      if (meta.duration) item.duration = meta.duration;
+      if (!improved) return;
+      renderQueue();
+      // Re-fetch lyrics now we have proper tags (especially when artist was missing)
+      if (!artist || item.lyricsStatus === 'notfound') {
+        item.lyricsStatus = 'searching';
+        item.lyrics = [];
+        renderQueue();
+        fetchLyrics(newTitle, newArtist, meta.duration || 0).then(({ lines, meta: lm }) => {
+          item.lyrics = lines;
+          item.lyricsMeta = lm;
+          item.lyricsStatus = lines.length ? 'found' : 'notfound';
+          renderQueue();
+          if (queue[currentIndex] === item) {
+            lyrics = lines;
+            currentSong = { title: newTitle, artist: newArtist };
+            send({ type: 'song', title: newTitle, artist: newArtist, lyrics: lines, duration: getDur() });
+            setLyricsStatus(item.lyricsStatus, lm, lines);
+            document.getElementById('edit-artist').value = newArtist;
+            document.getElementById('edit-title').value  = newTitle;
+          }
+        });
+      }
+    })
+    .catch(() => {});
 }
 
 async function addFolderToQueue(btn, folderPath) {
