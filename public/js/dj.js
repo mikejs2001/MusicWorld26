@@ -769,21 +769,28 @@ function decamel(s) {
 }
 
 function parseFilename(name) {
-  let base = name.replace(/\.[^.]+$/, '').replace(/^\d+[\s._-]+/, '');
+  let base = name.replace(/\.[^.]+$/, '');  // strip extension
 
-  // Spaced separator: "Artist - Title" or "Title - Artist"
+  // Strip leading track numbers in any of these formats:
+  // "01 - ", "1-01 ", "- 1-01 ", "01. ", "1_", "- 01 " etc.
+  base = base.replace(/^[-\s]*\d+[-.\s_]*\d*[-.\s_]+/, '');
+
+  // Standard spaced separator: "Artist - Title" or "Title - Artist"
   let m = base.match(/^(.+?)\s+[-–—]\s+(.+)$/);
   if (m) return { artist: m[1].trim(), title: m[2].trim() };
 
-  // No spaces in the whole name → compressed format (SisterSledge-Frankie, Sister_Sledge_Frankie)
+  // Space-dash with NO space after: "Toxic -Britney Spears"
+  m = base.match(/^(.+?)\s+[-–—](\w.+)$/);
+  if (m) return { artist: m[1].trim(), title: m[2].trim() };
+
+  // No spaces at all → compressed format: SisterSledge-Frankie, Sister_Sledge_Frankie
   if (!/\s/.test(base)) {
     m = base.match(/^(.+?)[-_](.+)$/);
     if (m) return { artist: decamel(m[1]).trim(), title: decamel(m[2]).trim() };
-    // Completely concatenated (FrankieSisterSledge) — CamelCase split as title
     return { artist: '', title: decamel(base) };
   }
 
-  // Has spaces but no clear separator — use as title only, discover artist later
+  // Has spaces but no recognised separator → use whole string as title
   return { artist: '', title: base };
 }
 
