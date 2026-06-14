@@ -29,6 +29,14 @@
       <div class="now-playing">
         <div id="np-artist" class="np-artist"></div>
         <div id="np-title"  class="np-title">No song loaded</div>
+        <div id="lyrics-status" class="lyrics-status"></div>
+      </div>
+
+      <!-- Manual lyrics search (shown when lyrics not found) -->
+      <div id="lyrics-edit" class="lyrics-edit" hidden>
+        <input type="text" id="edit-artist" class="url-input" placeholder="Artist name">
+        <input type="text" id="edit-title"  class="url-input" placeholder="Song title">
+        <button id="btn-find-lyrics" class="btn btn-primary">Find Lyrics</button>
       </div>
 
       <div id="yt-player-container" hidden>

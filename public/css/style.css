@@ -242,6 +242,25 @@ input[type=range]::-webkit-slider-thumb {
 
 .empty-msg { color: var(--muted); font-size: 0.75rem; text-align: center; padding: 12px 0; }
 
+/* Lyrics status + manual edit */
+.lyrics-status {
+  font-size: 0.72rem;
+  margin-top: 4px;
+  min-height: 1em;
+}
+.lyrics-status.searching { color: var(--muted); }
+.lyrics-status.found     { color: #4ade80; }
+.lyrics-status.notfound  { color: #f59e0b; }
+
+.lyrics-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
 /* Storage browser */
 .browse-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; }
 .browse-sc { font-size: 0.72rem; padding: 5px 8px; }
@@ -285,6 +304,41 @@ input[type=range]::-webkit-slider-thumb {
   border-radius: 5px;
   justify-content: center;
 }
+
+/* Folder row: name navigates, ＋ adds all */
+.bi-dir-row {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  border-radius: 5px;
+  transition: background 0.1s;
+  gap: 4px;
+}
+.bi-dir-row:hover { background: var(--surface); }
+.bi-dir-name {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bi-dir-name:hover { color: var(--text); }
+.bi-dir-add {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1.6;
+  margin-right: 6px;
+}
+.bi-dir-add:hover { background: var(--surface); border-color: var(--accent2); }
 
 /* Lyrics preview bar */
 .lyrics-preview {

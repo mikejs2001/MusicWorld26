@@ -176,3 +176,5 @@ function esc(s) {
 // ── Init ────────────────────────────────────────────────────
 connectWS();
 requestAnimationFrame(render);
+// Ask DJ console to re-send current song state (handles opening display tab late)
+channel.postMessage({ type: 'hello' });

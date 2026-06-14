@@ -40,11 +40,21 @@ function connectWS() {
 }
 
 function send(msg) {
-  // BroadcastChannel reaches any display tab in this browser (Chromecast use-case)
   channel.postMessage(msg);
-  // WebSocket reaches display on a separate device
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
+
+// When display tab opens late it sends 'hello' — reply with current song state
+channel.onmessage = (e) => {
+  if (e.data.type === 'hello' && currentSong) {
+    channel.postMessage({ type: 'song', ...currentSong, lyrics, duration: getDur() });
+    // Also send current time so display doesn't start from 0
+    channel.postMessage({ type: 'time', t: getTime(), duration: getDur() });
+    if (!isPlaying) channel.postMessage({ type: 'pause', t: getTime() });
+  }
+};
+
+let currentSong = null; // track {title, artist} for re-broadcast
 
 function setSyncStatus(state) {
   const el = document.getElementById('sync-status');
@@ -220,14 +230,52 @@ function updateLyricsPreview(t) {
 
 // ── Lyrics fetch ────────────────────────────────────────────
 async function fetchAndSendLyrics(title, artist, dur) {
+  setLyricsStatus('searching');
+  // Pre-fill the manual edit form
+  document.getElementById('edit-artist').value = artist || '';
+  document.getElementById('edit-title').value  = title  || '';
+
   const result = await fetchLyrics(title, artist, dur);
   lyrics = result;
+  currentSong = { title, artist };
   send({ type: 'song', title, artist, lyrics: result, duration: dur || 0 });
+
+  if (result.length) {
+    setLyricsStatus('found');
+  } else {
+    setLyricsStatus('notfound');
+  }
 }
+
+function setLyricsStatus(state) {
+  const el = document.getElementById('lyrics-status');
+  const editEl = document.getElementById('lyrics-edit');
+  if (!el) return;
+  if (state === 'searching') {
+    el.textContent = '🔍 Finding lyrics…';
+    el.className = 'lyrics-status searching';
+    editEl.hidden = true;
+  } else if (state === 'found') {
+    el.textContent = '✓ Lyrics found';
+    el.className = 'lyrics-status found';
+    editEl.hidden = true;
+  } else {
+    el.textContent = '✗ No lyrics — edit title/artist below';
+    el.className = 'lyrics-status notfound';
+    editEl.hidden = false;
+  }
+}
+
+document.getElementById('btn-find-lyrics').addEventListener('click', async () => {
+  const artist = document.getElementById('edit-artist').value.trim();
+  const title  = document.getElementById('edit-title').value.trim();
+  if (!title) return;
+  await fetchAndSendLyrics(title, artist, getDur());
+});
 
 async function fetchLyrics(title, artist, dur) {
   try {
-    // 1. Exact match
+    // 1. Exact match with duration
     const p = new URLSearchParams({ track_name: title });
     if (artist) p.set('artist_name', artist);
     if (dur)    p.set('duration', Math.round(dur));
@@ -409,10 +457,14 @@ async function browseDir(pathArg) {
       html += `<div class="bi bi-dir" data-path="${esc(data.parent)}">📁 ..</div>`;
     }
     for (const d of data.dirs) {
-      html += `<div class="bi bi-dir" data-path="${esc(d.path)}">📁 ${esc(d.name)}</div>`;
+      // Each folder: click name = navigate, click ＋ = add all tracks inside
+      html += `<div class="bi bi-dir-row">
+        <span class="bi-dir-name" data-path="${esc(d.path)}">📁 ${esc(d.name)}</span>
+        <button class="bi-dir-add" data-path="${esc(d.path)}" title="Add all tracks in this folder">＋</button>
+      </div>`;
     }
     if (data.files.length) {
-      html += `<div class="bi bi-add-all" data-action="addall">＋ Add all ${data.files.length} track${data.files.length > 1 ? 's' : ''}</div>`;
+      html += `<div class="bi bi-add-all">＋ Add all ${data.files.length} track${data.files.length > 1 ? 's' : ''} in this folder</div>`;
       for (const f of data.files) {
         html += `<div class="bi bi-file" data-path="${esc(f.path)}" data-name="${esc(f.name)}">🎵 ${esc(f.name)}</div>`;
       }
@@ -422,8 +474,14 @@ async function browseDir(pathArg) {
 
     listEl.innerHTML = html;
 
+    listEl.querySelectorAll('.bi-dir-name').forEach(el => {
+      el.addEventListener('click', () => browseDir(el.dataset.path));
+    });
     listEl.querySelectorAll('.bi-dir').forEach(el => {
       el.addEventListener('click', () => browseDir(el.dataset.path));
+    });
+    listEl.querySelectorAll('.bi-dir-add').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); addFolderToQueue(btn.dataset.path); });
     });
     listEl.querySelectorAll('.bi-file').forEach(el => {
       el.addEventListener('click', () => addStreamFile(el.dataset.path, el.dataset.name));
@@ -441,6 +499,15 @@ function addStreamFile(filePath, fileName) {
   const { artist, title } = parseFilename(fileName);
   const url = `/api/stream?path=${encodeURIComponent(filePath)}`;
   addToQueue({ type: 'local', file: null, url, title, artist, duration: 0 });
+}
+
+async function addFolderToQueue(folderPath) {
+  try {
+    const r = await fetch(`/api/browse?path=${encodeURIComponent(folderPath)}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    data.files.forEach(f => addStreamFile(f.path, f.name));
+  } catch (_) {}
 }
 
 // ── Helpers ─────────────────────────────────────────────────
