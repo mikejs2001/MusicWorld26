@@ -94,7 +94,8 @@ function expandHome(p) {
   return p;
 }
 
-const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i;
+// All common audio formats including WMA, 3GP common on Android
+const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|3gp|3ga|amr|aiff|aif|ape|alac)$/i;
 
 app.get('/api/browse', (req, res) => {
   const raw    = req.query.path ? decodeURIComponent(req.query.path) : '~';
@@ -108,22 +109,37 @@ app.get('/api/browse', (req, res) => {
     for (const e of entries) {
       if (e.name.startsWith('.')) continue;
       const full = path.join(target, e.name);
+      let isDir = false, isFile = false;
       try {
-        // Follow symlinks (needed for ~/storage/* on Android)
+        // statSync follows symlinks — necessary for ~/storage/* on Android
         const stat = fs.statSync(full);
-        if (stat.isDirectory()) dirs.push({ name: e.name, path: full });
-        else if (AUDIO_EXT.test(e.name)) files.push({ name: e.name, path: full });
-      } catch (_) { /* skip unreadable entries */ }
+        isDir  = stat.isDirectory();
+        isFile = stat.isFile();
+      } catch (_) {
+        // statSync failed (permission, broken symlink) — fall back to dirent type
+        isDir  = e.isDirectory();
+        isFile = e.isFile();
+      }
+      if (isDir) dirs.push({ name: e.name, path: full });
+      else if (isFile && AUDIO_EXT.test(e.name)) files.push({ name: e.name, path: full });
     }
     dirs.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => a.name.localeCompare(b.name));
 
     const parent = path.dirname(target);
+    // Include unique non-matching extensions so the client can show a helpful message
+    const unknownExts = [...new Set(
+      entries
+        .filter(e => !e.name.startsWith('.'))
+        .map(e => { const m = e.name.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : null; })
+        .filter(ext => ext && !AUDIO_EXT.test('.' + ext))
+    )];
     res.json({
       current: target,
       parent: isAllowedPath(parent) && parent !== target ? parent : null,
       dirs,
       files,
+      unknownExts,  // non-audio extensions found (useful for debugging empty folders)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

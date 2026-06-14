@@ -519,7 +519,11 @@ async function browseDir(pathArg) {
         html += `<div class="bi bi-file" data-path="${esc(f.path)}" data-name="${esc(f.name)}">🎵 ${esc(f.name)}</div>`;
       }
     } else if (!data.dirs.length) {
-      html = '<p class="empty-msg">No audio files here</p>';
+      if (data.unknownExts && data.unknownExts.length) {
+        html = `<p class="empty-msg">No recognised audio files here.<br>Found: .${data.unknownExts.join(', .')} — these formats aren't supported.</p>`;
+      } else {
+        html = '<p class="empty-msg">No audio files here</p>';
+      }
     }
 
     listEl.innerHTML = html;
