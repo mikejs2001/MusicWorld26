@@ -5,6 +5,7 @@ let lastKnownAt = performance.now();
 let isPlaying = false;
 let totalDuration = 0;
 let lastLineIndex = -2; // force initial render
+let syncOffset = 0;    // seconds; positive = lyrics fire earlier
 
 // ── Sync: BroadcastChannel (same browser) + WebSocket (cross-device) ──
 
@@ -50,6 +51,9 @@ function handleMessage(msg) {
       if (msg.t !== undefined) { lastKnownTime = msg.t; lastKnownAt = performance.now(); }
       isPlaying = true;
       break;
+    case 'offset':
+      syncOffset = msg.value || 0;
+      break;
     case 'clear':
       currentSong = null;
       lyrics = [];
@@ -61,8 +65,8 @@ function handleMessage(msg) {
 // ── Time interpolation ──────────────────────────────────────
 
 function getTime() {
-  if (!isPlaying) return lastKnownTime;
-  return lastKnownTime + (performance.now() - lastKnownAt) / 1000;
+  const base = lastKnownTime + (isPlaying ? (performance.now() - lastKnownAt) / 1000 : 0);
+  return base + syncOffset;
 }
 
 function findLineIndex(t) {

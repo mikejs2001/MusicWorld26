@@ -73,6 +73,13 @@
         <span>🔊</span>
         <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="0.8">
       </div>
+
+      <div class="sync-row">
+        <span class="sync-label">Lyrics sync</span>
+        <button class="sync-btn" onclick="adjustSync(-0.1)" title="Lyrics later">◀</button>
+        <span id="sync-val" class="sync-val">+0.0s</span>
+        <button class="sync-btn" onclick="adjustSync(+0.1)" title="Lyrics earlier">▶</button>
+      </div>
     </section>
 
     <!-- ── Add / Loading (Right) ─────────────────────────── -->

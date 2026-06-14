@@ -473,6 +473,16 @@ document.getElementById('btn-wrong-lyrics').addEventListener('click', () => {
   document.getElementById('lyrics-edit').hidden  = false;
 });
 
+// ── Lyrics sync offset ────────────────────────────────────────
+let syncOffset = 0;
+
+function adjustSync(delta) {
+  syncOffset = Math.round((syncOffset + delta) * 10) / 10;
+  document.getElementById('sync-val').textContent =
+    (syncOffset >= 0 ? '+' : '') + syncOffset.toFixed(1) + 's';
+  send({ type: 'offset', value: syncOffset });
+}
+
 // ── Player controls ───────────────────────────────────────────
 btnPlay.addEventListener('click', () => {
   if (source === 'local') {

@@ -183,6 +183,26 @@ input[type=range]::-webkit-slider-thumb {
 }
 .volume-row input { width: 120px; }
 
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+.sync-label { color: var(--muted); }
+.sync-val   { color: var(--text); min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+.sync-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  width: 26px; height: 26px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.sync-btn:hover { background: var(--border); }
+
 /* Lyrics status + manual edit */
 .lyrics-status {
   font-size: 0.72rem;
