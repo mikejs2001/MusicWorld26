@@ -106,23 +106,28 @@ app.get('/api/browse', (req, res) => {
 
   try {
     const entries = fs.readdirSync(target, { withFileTypes: true });
+    console.log(`[browse] readdirSync returned ${entries.length} entries`);
     const dirs = [], files = [];
     for (const e of entries) {
       if (e.name.startsWith('.')) continue;
       const full = path.join(target, e.name);
       let isDir = false, isFile = false;
+      let statErr = null;
       try {
         // statSync follows symlinks — necessary for ~/storage/* on Android
         const stat = fs.statSync(full);
         isDir  = stat.isDirectory();
         isFile = stat.isFile();
-      } catch (_) {
+      } catch (err) {
+        statErr = err.message;
         // statSync failed (permission, broken symlink) — fall back to dirent type
         isDir  = e.isDirectory();
         isFile = e.isFile();
       }
+      const extMatch = AUDIO_EXT.test(e.name);
+      console.log(`[browse]   "${e.name}" isDir=${isDir} isFile=${isFile} extMatch=${extMatch}${statErr ? ' statErr='+statErr : ''}`);
       if (isDir) dirs.push({ name: e.name, path: full });
-      else if (isFile && AUDIO_EXT.test(e.name)) files.push({ name: e.name, path: full });
+      else if (isFile && extMatch) files.push({ name: e.name, path: full });
     }
     dirs.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => a.name.localeCompare(b.name));
