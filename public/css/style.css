@@ -91,6 +91,18 @@ body.dj-body {
 }
 
 /* ── Ready to Play (left panel) ──────────────────────────── */
+.restore-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
 .queue-list { display: flex; flex-direction: column; gap: 4px; }
 
 .queue-item {

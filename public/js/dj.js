@@ -1,5 +1,132 @@
 const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|3gp|3ga|amr|aiff|aif|ape|alac)$/i;
 
+// ── Persistence ───────────────────────────────────────────────
+// Queue metadata → localStorage.  Folder handles → IndexedDB.
+
+let _idb = null;
+function openIDB() {
+  if (_idb) return Promise.resolve(_idb);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('karaoke', 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('folders', { keyPath: 'id' });
+    r.onsuccess = e => { _idb = e.target.result; res(_idb); };
+    r.onerror   = () => rej(r.error);
+  });
+}
+function idbTx(mode) { return openIDB().then(db => db.transaction('folders', mode).objectStore('folders')); }
+async function idbGetAll() {
+  const store = await idbTx('readonly');
+  return new Promise((res, rej) => { const r = store.getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); });
+}
+async function idbPut(val) {
+  const db = await openIDB();
+  return new Promise((res, rej) => { const tx = db.transaction('folders', 'readwrite'); tx.objectStore('folders').put(val); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+}
+
+function saveQueue() {
+  try {
+    localStorage.setItem('karaoke-q', JSON.stringify(queue.map(item => ({
+      type:             item.type,
+      title:            item.title,
+      artist:           item.artist,
+      artistDiscovered: item.artistDiscovered || false,
+      lyrics:           item.lyrics   || [],
+      lyricsMeta:       item.lyricsMeta || null,
+      videoId:          item.videoId  || null,
+      url:   (item.url && !item.url.startsWith('blob:')) ? item.url : null,
+      fileName: item.fileName || null,
+      folderId: item.folderId || null,
+    }))));
+  } catch (_) {}
+}
+
+let _pendingRelink = []; // saved items waiting for folder permission
+
+async function restoreLibrary() {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('karaoke-q') || '[]'); } catch (_) {}
+  if (!saved.length) return;
+
+  // Stable-URL items (YouTube, /music/ server library) restore immediately
+  for (const item of saved.filter(x => x.url)) {
+    queue.push({ ...item, lyrics: item.lyrics || [], lyricsStatus: 'found' });
+  }
+  renderQueue();
+
+  // Local file items need a folder handle
+  _pendingRelink = saved.filter(x => !x.url && x.fileName && x.folderId);
+  if (!_pendingRelink.length) return;
+
+  // Try to relink silently (no prompt) if permission is already granted
+  try {
+    const folders = await idbGetAll();
+    for (const { id, handle } of folders) {
+      const perm = await handle.queryPermission({ mode: 'read' }).catch(() => 'denied');
+      if (perm === 'granted') await _relinkFromHandle(id, handle);
+    }
+  } catch (_) {}
+
+  const still = _pendingRelink.filter(x => !x._relinked);
+  if (still.length) showRestoreBar(still.length);
+  renderQueue();
+}
+
+async function _relinkFromHandle(folderId, dirHandle) {
+  const fileMap = new Map();
+  try {
+    for await (const [name, fh] of dirHandle.entries()) {
+      if (AUDIO_EXT.test(name)) fileMap.set(name, fh);
+    }
+  } catch (_) { return; }
+
+  for (const item of _pendingRelink.filter(x => x.folderId === folderId && !x._relinked)) {
+    const fh = fileMap.get(item.fileName);
+    if (!fh) continue;
+    try {
+      const file = await fh.getFile();
+      queue.push({
+        type: 'local', file,
+        url:  URL.createObjectURL(file),
+        title: item.title, artist: item.artist,
+        artistDiscovered: item.artistDiscovered,
+        lyrics: item.lyrics || [], lyricsMeta: item.lyricsMeta,
+        lyricsStatus: 'found',
+        fileName: item.fileName, folderId: item.folderId,
+      });
+      item._relinked = true;
+    } catch (_) {}
+  }
+}
+
+async function requestFolderRestore() {
+  // Requires a user gesture — called from button click
+  const folders = await idbGetAll().catch(() => []);
+  let count = 0;
+  for (const { id, handle } of folders) {
+    if (!_pendingRelink.some(x => x.folderId === id && !x._relinked)) continue;
+    try {
+      const perm = await handle.requestPermission({ mode: 'read' });
+      if (perm !== 'granted') continue;
+      const before = queue.length;
+      await _relinkFromHandle(id, handle);
+      count += queue.length - before;
+    } catch (_) {}
+  }
+  renderQueue();
+  saveQueue();
+  if (!_pendingRelink.some(x => !x._relinked)) hideRestoreBar();
+  showToast(count ? `${count} track${count !== 1 ? 's' : ''} restored` : 'Could not restore — select the folder again');
+}
+
+function showRestoreBar(n) {
+  const el = document.getElementById('restore-bar');
+  if (el) { el.hidden = false; el.querySelector('.restore-count').textContent = n; }
+}
+function hideRestoreBar() {
+  const el = document.getElementById('restore-bar');
+  if (el) el.hidden = true;
+}
+
 // ── State ────────────────────────────────────────────────────
 const loading = []; // tracks being processed (right panel)
 const queue   = []; // tracks ready to play   (left panel)
@@ -193,6 +320,7 @@ function promoteToQueue(item) {
   queue.push(item);
   renderLoading();
   renderQueue();
+  saveQueue();
 }
 
 function removeFromLoading(idx) {
@@ -296,6 +424,7 @@ function removeFromQueue(idx) {
   queue.splice(idx, 1);
   if (currentIndex > idx) currentIndex--;
   renderQueue();
+  saveQueue();
 }
 
 // ── Playback ──────────────────────────────────────────────────
@@ -521,19 +650,46 @@ document.getElementById('file-input').addEventListener('change', e => {
   e.target.value = '';
 });
 
+// Fallback: webkitdirectory input (no persistence for local files)
 document.getElementById('folder-input').addEventListener('change', e => {
   const audioFiles = Array.from(e.target.files).filter(f => AUDIO_EXT.test(f.name));
   if (!audioFiles.length) { showToast('No audio files found in that folder'); return; }
   audioFiles.sort((a, b) => a.name.localeCompare(b.name));
-  audioFiles.forEach(addLocalFile);
+  audioFiles.forEach(f => addLocalFile(f, null));
   showToast(`Queuing ${audioFiles.length} track${audioFiles.length !== 1 ? 's' : ''} for processing…`);
   e.target.value = '';
 });
 
-function addLocalFile(file) {
+// Primary: File System Access API — handle stored in IndexedDB for session restore
+async function pickFolder() {
+  if (!('showDirectoryPicker' in window)) {
+    document.getElementById('folder-input').click();
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+    const folderId  = 'f' + Date.now();
+    await idbPut({ id: folderId, handle: dirHandle });
+
+    const pairs = [];
+    for await (const [name, fh] of dirHandle.entries()) {
+      if (AUDIO_EXT.test(name)) {
+        try { pairs.push({ file: await fh.getFile(), folderId }); } catch (_) {}
+      }
+    }
+    if (!pairs.length) { showToast('No audio files found in that folder'); return; }
+    pairs.sort((a, b) => a.file.name.localeCompare(b.file.name));
+    pairs.forEach(({ file }) => addLocalFile(file, folderId));
+    showToast(`Queuing ${pairs.length} track${pairs.length !== 1 ? 's' : ''} for processing…`);
+  } catch (e) {
+    if (e.name !== 'AbortError') showToast('Could not access folder');
+  }
+}
+
+function addLocalFile(file, folderId) {
   const { artist, title } = parseFilename(file.name);
   const url  = URL.createObjectURL(file);
-  const item = { type: 'local', file, url, title, artist, duration: 0 };
+  const item = { type: 'local', file, url, title, artist, duration: 0, fileName: file.name, folderId };
   const tmp  = new Audio(url);
   tmp.addEventListener('loadedmetadata', () => { item.duration = tmp.duration; }, { once: true });
   addToLoading(item);
@@ -631,3 +787,4 @@ connectWS();
 loadLibrary();
 renderQueue();
 renderLoading();
+restoreLibrary();

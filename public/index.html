@@ -21,6 +21,10 @@
     <!-- ── Ready to Play (Left) ──────────────────────────── -->
     <section class="panel ready-panel">
       <h2>Ready to Play</h2>
+      <div id="restore-bar" class="restore-bar" hidden>
+        <span><span class="restore-count">0</span> tracks need audio re-linked</span>
+        <button class="btn btn-sm btn-primary" onclick="requestFolderRestore()">Restore</button>
+      </div>
       <div id="queue-list" class="queue-list"></div>
     </section>
 
@@ -92,7 +96,7 @@
         <input type="file" id="folder-input" webkitdirectory multiple hidden>
         <div class="btn-row">
           <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
-          <button class="btn" onclick="document.getElementById('folder-input').click()">Browse Folder</button>
+          <button class="btn" onclick="pickFolder()">Browse Folder</button>
         </div>
         <div id="music-library" class="music-library"></div>
       </div>
