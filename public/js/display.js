@@ -6,48 +6,59 @@ let isPlaying = false;
 let totalDuration = 0;
 let lastLineIndex = -2; // force initial render
 
-function connect() {
-  const ws = new WebSocket(`ws://${location.host}`);
+// ── Sync: BroadcastChannel (same browser) + WebSocket (cross-device) ──
 
-  ws.onopen = () => setStatus('● LIVE', '#4ade80');
-  ws.onclose = () => { setStatus('○ Reconnecting…', '#f59e0b'); setTimeout(connect, 2000); };
-  ws.onerror = () => ws.close();
+const channel = new BroadcastChannel('karaoke');
+channel.onmessage = (e) => handleMessage(e.data);
 
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    switch (msg.type) {
-      case 'song':
-        currentSong = { title: msg.title || '', artist: msg.artist || '' };
-        lyrics = msg.lyrics || [];
-        totalDuration = msg.duration || 0;
-        lastKnownTime = 0;
-        lastKnownAt = performance.now();
-        isPlaying = true;
-        lastLineIndex = -2;
-        updateSongInfo();
-        break;
-      case 'time':
-        lastKnownTime = msg.t;
-        lastKnownAt = performance.now();
-        if (msg.duration) totalDuration = msg.duration;
-        isPlaying = true;
-        break;
-      case 'pause':
-        if (msg.t !== undefined) lastKnownTime = msg.t;
-        isPlaying = false;
-        break;
-      case 'resume':
-        if (msg.t !== undefined) { lastKnownTime = msg.t; lastKnownAt = performance.now(); }
-        isPlaying = true;
-        break;
-      case 'clear':
-        currentSong = null;
-        lyrics = [];
-        showWaiting();
-        break;
-    }
-  };
+function connectWS() {
+  // Only attempt WebSocket when served over http (not file://)
+  if (location.protocol === 'file:') return;
+  try {
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+    ws.onclose   = () => setTimeout(connectWS, 3000);
+    ws.onerror   = () => ws.close();
+  } catch (_) {}
 }
+
+function handleMessage(msg) {
+  hideCastHint();
+  switch (msg.type) {
+    case 'song':
+      currentSong   = { title: msg.title || '', artist: msg.artist || '' };
+      lyrics        = msg.lyrics || [];
+      totalDuration = msg.duration || 0;
+      lastKnownTime = 0;
+      lastKnownAt   = performance.now();
+      isPlaying     = true;
+      lastLineIndex = -2;
+      updateSongInfo();
+      setStatus('● LIVE', '#4ade80');
+      break;
+    case 'time':
+      lastKnownTime = msg.t;
+      lastKnownAt   = performance.now();
+      if (msg.duration) totalDuration = msg.duration;
+      isPlaying = true;
+      break;
+    case 'pause':
+      if (msg.t !== undefined) lastKnownTime = msg.t;
+      isPlaying = false;
+      break;
+    case 'resume':
+      if (msg.t !== undefined) { lastKnownTime = msg.t; lastKnownAt = performance.now(); }
+      isPlaying = true;
+      break;
+    case 'clear':
+      currentSong = null;
+      lyrics = [];
+      showWaiting();
+      break;
+  }
+}
+
+// ── Time interpolation ──────────────────────────────────────
 
 function getTime() {
   if (!isPlaying) return lastKnownTime;
@@ -63,25 +74,24 @@ function findLineIndex(t) {
   return idx;
 }
 
-// Render loop — runs at 60 fps
+// ── Render loop (60 fps) ────────────────────────────────────
+
 function render() {
   requestAnimationFrame(render);
   if (!currentSong) return;
 
-  const t = getTime();
+  const t   = getTime();
   const idx = findLineIndex(t);
 
-  // Update progress bar
   if (totalDuration > 0) {
     document.getElementById('progress-fill').style.width =
       Math.min(100, (t / totalDuration) * 100) + '%';
   }
 
-  const currLine = idx >= 0 ? lyrics[idx] : null;
-  const prevLine = idx > 0 ? lyrics[idx - 1] : null;
+  const currLine = idx >= 0              ? lyrics[idx]     : null;
+  const prevLine = idx > 0              ? lyrics[idx - 1] : null;
   const nextLine = idx < lyrics.length - 1 ? lyrics[idx + 1] : null;
 
-  // Update static lines only when they change
   if (idx !== lastLineIndex) {
     lastLineIndex = idx;
     setText('lyric-prev', prevLine ? prevLine.text : '');
@@ -89,13 +99,12 @@ function render() {
     buildCurrentLine(currLine);
   }
 
-  // Update fill / word highlights every frame
   animateCurrentLine(currLine, nextLine, t);
 }
 
 function setText(id, text) {
   const el = document.getElementById(id);
-  if (el.textContent !== text) el.textContent = text;
+  if (el && el.textContent !== text) el.textContent = text;
 }
 
 function buildCurrentLine(line) {
@@ -105,12 +114,13 @@ function buildCurrentLine(line) {
   if (line.words && line.words.length > 0) {
     container.dataset.mode = 'words';
     container.innerHTML = line.words
-      .map((w, i) => `<span class="word" data-time="${w.time}" data-i="${i}">${esc(w.text)}</span>`)
-      .join(' '); // hair space between word spans
+      .map(w => `<span class="word" data-time="${w.time}">${esc(w.text)}</span>`)
+      .join(' ');
   } else {
     container.dataset.mode = 'fill';
     const t = esc(line.text);
-    container.innerHTML = `<span class="fill-base" data-text="${t}">${t}<span class="fill-fg" id="fill-fg">${t}</span></span>`;
+    container.innerHTML =
+      `<span class="fill-base">${t}<span class="fill-fg" id="fill-fg">${t}</span></span>`;
   }
 }
 
@@ -120,18 +130,19 @@ function animateCurrentLine(line, nextLine, t) {
 
   if (container.dataset.mode === 'words') {
     container.querySelectorAll('.word').forEach(span => {
-      const wt = parseFloat(span.dataset.time);
-      span.classList.toggle('sung', t >= wt);
+      span.classList.toggle('sung', t >= parseFloat(span.dataset.time));
     });
   } else {
     const fg = document.getElementById('fill-fg');
     if (!fg) return;
     const start = line.time;
-    const end = nextLine ? nextLine.time : line.time + 5;
-    const pct = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
+    const end   = nextLine ? nextLine.time : line.time + 5;
+    const pct   = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
     fg.style.width = pct + '%';
   }
 }
+
+// ── UI helpers ──────────────────────────────────────────────
 
 function updateSongInfo() {
   if (!currentSong) return;
@@ -143,20 +154,25 @@ function showWaiting() {
   document.getElementById('song-info').textContent = 'Waiting for DJ…';
   ['lyric-prev', 'lyric-next'].forEach(id => setText(id, ''));
   const c = document.getElementById('lyric-current-container');
-  c.innerHTML = '';
-  c.dataset.mode = '';
+  c.innerHTML = ''; c.dataset.mode = '';
   document.getElementById('progress-fill').style.width = '0%';
+  setStatus('○ Waiting…', '#888');
 }
 
 function setStatus(text, color) {
   const el = document.getElementById('status');
-  el.textContent = text;
-  el.style.color = color;
+  if (el) { el.textContent = text; el.style.color = color; }
+}
+
+function hideCastHint() {
+  const el = document.getElementById('cast-hint');
+  if (el) el.style.display = 'none';
 }
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-connect();
+// ── Init ────────────────────────────────────────────────────
+connectWS();
 requestAnimationFrame(render);

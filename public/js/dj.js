@@ -19,22 +19,37 @@ const npArtist = document.getElementById('np-artist');
 const npTitle  = document.getElementById('np-title');
 const queueList = document.getElementById('queue-list');
 
-// ── WebSocket ───────────────────────────────────────────────
+// ── Sync: BroadcastChannel (same browser) + WebSocket (cross-device) ──
+const channel = new BroadcastChannel('karaoke');
+let displayTabOpen = false;
 let ws = null;
 
+function openDisplay() {
+  window.open('/display.html', 'karaoke-display');
+  displayTabOpen = true;
+  setSyncStatus('open');
+}
+
 function connectWS() {
-  ws = new WebSocket(`ws://${location.host}`);
-  ws.onopen  = () => setDot('connected');
-  ws.onclose = () => { setDot('disconnected'); setTimeout(connectWS, 3000); };
-  ws.onerror = () => ws.close();
+  if (location.protocol === 'file:') return;
+  try {
+    ws = new WebSocket(`ws://${location.host}`);
+    ws.onclose = () => setTimeout(connectWS, 3000);
+    ws.onerror = () => ws.close();
+  } catch (_) {}
 }
 
 function send(msg) {
+  // BroadcastChannel reaches any display tab in this browser (Chromecast use-case)
+  channel.postMessage(msg);
+  // WebSocket reaches display on a separate device
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-function setDot(cls) {
-  document.getElementById('ws-status').className = 'status-dot ' + cls;
+function setSyncStatus(state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (state === 'open') { el.textContent = '● Display open'; el.style.color = '#4ade80'; }
 }
 
 // ── Queue ───────────────────────────────────────────────────

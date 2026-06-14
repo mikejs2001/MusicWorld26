@@ -44,13 +44,24 @@ body.dj-body {
   flex: 1;
 }
 
-.status-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  transition: background 0.3s;
+.btn-open-display {
+  padding: 7px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.15s;
 }
-.status-dot.connected    { background: #4ade80; box-shadow: 0 0 6px #4ade8088; }
-.status-dot.disconnected { background: #f87171; }
+.btn-open-display:hover { background: var(--accent2); }
+
+.sync-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
 
 /* Main 3-column grid */
 .dj-main {
@@ -352,6 +363,23 @@ body.display-body {
   font-size: 0.75rem;
   color: var(--muted, #888);
   letter-spacing: 0.05em;
+}
+
+/* Cast hint — shown until first message arrives */
+.cast-hint {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.6);
+  font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+  padding: 16px 28px;
+  border-radius: 10px;
+  text-align: center;
+  line-height: 1.7;
+  backdrop-filter: blur(6px);
 }
 
 /* ── Responsive (portrait tablet) ────────────────────────── */

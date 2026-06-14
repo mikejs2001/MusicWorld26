@@ -10,8 +10,10 @@
 
   <header class="dj-header">
     <h1>🎤 Karaoke DJ</h1>
-    <span style="font-size:0.75rem;color:var(--muted)">Display connection</span>
-    <div id="ws-status" class="status-dot disconnected" title="TV display connection"></div>
+    <button class="btn btn-open-display" onclick="openDisplay()" title="Open lyrics screen in a new tab, then cast that tab to Chromecast">
+      📺 Open Display Screen
+    </button>
+    <span id="sync-status" class="sync-status" title="Sync with display tab"></span>
   </header>
 
   <main class="dj-main">
