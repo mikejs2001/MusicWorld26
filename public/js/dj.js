@@ -205,15 +205,21 @@ async function processItem(item) {
     if (found) { item.artist = found; item.artistDiscovered = true; }
   }
 
-  // Step 2: find exact synced lyrics (karaoke requires syncedLyrics)
+  // Step 2: find exact synced lyrics
   item.loadStatus = 'finding-lyrics';
   renderLoading();
-  const result = await findExactLyrics(item.title, item.artist, item.duration || 0);
+  let result = await findExactLyrics(item.title, item.artist, item.duration || 0);
+
+  // Step 3: if still nothing and the filename had two parts, try them swapped —
+  // handles "Title - Artist" files where the order is reversed
+  if (!result && item.artist && item.title && !item.artistDiscovered) {
+    result = await findExactLyrics(item.artist, item.title, item.duration || 0);
+    if (result) [item.title, item.artist] = [item.artist, item.title];
+  }
 
   if (result) {
     item.lyrics     = result.lines;
     item.lyricsMeta = result.meta;
-    // Update artist/title to what LRCLIB confirmed, if it improved on what we had
     if (result.meta.artistName && !item.artist) item.artist = result.meta.artistName;
     item.loadStatus = 'ready';
     renderLoading();
@@ -753,10 +759,32 @@ function parseYTTitle(title) {
   return m ? { artist: m[1].trim(), title: m[2].trim() } : { artist: '', title: clean || title };
 }
 
+function decamel(s) {
+  return s
+    .replace(/_/g, ' ')                          // underscores → spaces
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')      // camelCase → camel Case
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')  // ABCDef → ABC Def
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseFilename(name) {
-  const base = name.replace(/\.[^.]+$/, '').replace(/^\d+[\s._-]+/, '');
-  const m = base.match(/^(.+?)\s+-\s+(.+)$/);
-  return m ? { artist: m[1].trim(), title: m[2].trim() } : { artist: '', title: base };
+  let base = name.replace(/\.[^.]+$/, '').replace(/^\d+[\s._-]+/, '');
+
+  // Spaced separator: "Artist - Title" or "Title - Artist"
+  let m = base.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+  if (m) return { artist: m[1].trim(), title: m[2].trim() };
+
+  // No spaces in the whole name → compressed format (SisterSledge-Frankie, Sister_Sledge_Frankie)
+  if (!/\s/.test(base)) {
+    m = base.match(/^(.+?)[-_](.+)$/);
+    if (m) return { artist: decamel(m[1]).trim(), title: decamel(m[2]).trim() };
+    // Completely concatenated (FrankieSisterSledge) — CamelCase split as title
+    return { artist: '', title: decamel(base) };
+  }
+
+  // Has spaces but no clear separator — use as title only, discover artist later
+  return { artist: '', title: base };
 }
 
 function fmt(s) {
