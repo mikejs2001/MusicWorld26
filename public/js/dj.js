@@ -71,16 +71,17 @@ function addToQueue(item) {
   if (currentIndex === -1) playSong(0);
 
   // Fetch lyrics in the background as soon as track is queued
-  fetchLyrics(item.title, item.artist, 0).then(result => {
-    item.lyrics = result;
-    item.lyricsStatus = result.length ? 'found' : 'notfound';
+  fetchLyrics(item.title, item.artist, 0).then(({ lines, meta }) => {
+    item.lyrics      = lines;
+    item.lyricsMeta  = meta;
+    item.lyricsStatus = lines.length ? 'found' : 'notfound';
     renderQueue();
     // If this track is already playing, push lyrics to display now
     if (queue[currentIndex] === item) {
-      lyrics = result;
+      lyrics = lines;
       currentSong = { title: item.title, artist: item.artist };
-      send({ type: 'song', title: item.title, artist: item.artist, lyrics: result, duration: getDur() });
-      setLyricsStatus(item.lyricsStatus);
+      send({ type: 'song', title: item.title, artist: item.artist, lyrics: lines, duration: getDur() });
+      setLyricsStatus(item.lyricsStatus, meta, lines);
     }
   });
 }
@@ -161,8 +162,11 @@ async function playLocal(item) {
 function pushItemLyrics(item) {
   lyrics = item.lyrics || [];
   currentSong = { title: item.title, artist: item.artist };
+  // Pre-fill the edit form with filename-parsed values
+  document.getElementById('edit-artist').value = item.artist || '';
+  document.getElementById('edit-title').value  = item.title  || '';
   send({ type: 'song', title: item.title, artist: item.artist, lyrics, duration: getDur() });
-  setLyricsStatus(item.lyricsStatus || 'searching');
+  setLyricsStatus(item.lyricsStatus || 'searching', item.lyricsMeta || null, lyrics);
 }
 
 function playYouTube(item) {
@@ -254,50 +258,8 @@ function updateLyricsPreview(t) {
 }
 
 // ── Lyrics fetch ────────────────────────────────────────────
-async function fetchAndSendLyrics(title, artist, dur) {
-  setLyricsStatus('searching');
-  // Pre-fill the manual edit form
-  document.getElementById('edit-artist').value = artist || '';
-  document.getElementById('edit-title').value  = title  || '';
 
-  const result = await fetchLyrics(title, artist, dur);
-  lyrics = result;
-  currentSong = { title, artist };
-  send({ type: 'song', title, artist, lyrics: result, duration: dur || 0 });
-
-  if (result.length) {
-    setLyricsStatus('found');
-  } else {
-    setLyricsStatus('notfound');
-  }
-}
-
-function setLyricsStatus(state) {
-  const el = document.getElementById('lyrics-status');
-  const editEl = document.getElementById('lyrics-edit');
-  if (!el) return;
-  if (state === 'searching') {
-    el.textContent = '🔍 Finding lyrics…';
-    el.className = 'lyrics-status searching';
-    editEl.hidden = true;
-  } else if (state === 'found') {
-    el.textContent = '✓ Lyrics found';
-    el.className = 'lyrics-status found';
-    editEl.hidden = true;
-  } else {
-    el.textContent = '✗ No lyrics — edit title/artist below';
-    el.className = 'lyrics-status notfound';
-    editEl.hidden = false;
-  }
-}
-
-document.getElementById('btn-find-lyrics').addEventListener('click', async () => {
-  const artist = document.getElementById('edit-artist').value.trim();
-  const title  = document.getElementById('edit-title').value.trim();
-  if (!title) return;
-  await fetchAndSendLyrics(title, artist, getDur());
-});
-
+// Returns { lines, meta: { trackName, artistName } }
 async function fetchLyrics(title, artist, dur) {
   try {
     // 1. Exact match with duration
@@ -321,19 +283,20 @@ async function fetchLyrics(title, artist, dur) {
         const results = await r.json();
         if (results.length) {
           const best = results[0];
-          return best.syncedLyrics ? parseLRC(best.syncedLyrics) : plainLines(best.plainLyrics);
+          const lines = best.syncedLyrics ? parseLRC(best.syncedLyrics) : plainLines(best.plainLyrics);
+          return { lines, meta: { trackName: best.trackName, artistName: best.artistName } };
         }
       }
-      return [];
+      return { lines: [], meta: null };
     }
 
     const data = await r.json();
-    if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
-    if (data.plainLyrics)  return plainLines(data.plainLyrics);
+    const lines = data.syncedLyrics ? parseLRC(data.syncedLyrics) : plainLines(data.plainLyrics);
+    return { lines, meta: { trackName: data.trackName, artistName: data.artistName } };
   } catch (e) {
     console.warn('Lyrics fetch failed:', e);
   }
-  return [];
+  return { lines: [], meta: null };
 }
 
 function plainLines(text) {
@@ -341,6 +304,59 @@ function plainLines(text) {
   return text.split('\n').filter(l => l.trim())
     .map((line, i) => ({ time: i * 4, text: line.trim(), words: [] }));
 }
+
+async function fetchAndSendLyrics(title, artist, dur) {
+  setLyricsStatus('searching', null, null);
+  const { lines, meta } = await fetchLyrics(title, artist, dur);
+  const item = queue[currentIndex];
+  if (item) { item.lyrics = lines; item.lyricsMeta = meta; item.lyricsStatus = lines.length ? 'found' : 'notfound'; renderQueue(); }
+  lyrics = lines;
+  currentSong = { title, artist };
+  send({ type: 'song', title, artist, lyrics: lines, duration: dur || 0 });
+  setLyricsStatus(lines.length ? 'found' : 'notfound', meta, lines);
+}
+
+function setLyricsStatus(state, meta, lines) {
+  const el      = document.getElementById('lyrics-status');
+  const editEl  = document.getElementById('lyrics-edit');
+  const matchEl = document.getElementById('lyrics-match');
+  if (!el) return;
+
+  if (state === 'searching') {
+    el.textContent = '🔍 Finding lyrics…';
+    el.className = 'lyrics-status searching';
+    editEl.hidden = true;
+    matchEl.hidden = true;
+  } else if (state === 'found' && meta) {
+    el.textContent = '✓ Lyrics found';
+    el.className = 'lyrics-status found';
+    editEl.hidden = true;
+    // Show what was matched so user can verify
+    document.getElementById('match-artist').textContent = meta.artistName || '—';
+    document.getElementById('match-title').textContent  = meta.trackName  || '—';
+    // Show first 3 lyric lines as a preview
+    const preview = (lines || []).filter(l => l.text).slice(0, 3).map(l => l.text).join(' / ');
+    document.getElementById('match-preview').textContent = preview ? `"${preview}"` : '';
+    matchEl.hidden = false;
+  } else {
+    el.textContent = '✗ No lyrics — edit title/artist below';
+    el.className = 'lyrics-status notfound';
+    matchEl.hidden = true;
+    editEl.hidden = false;
+  }
+}
+
+document.getElementById('btn-find-lyrics').addEventListener('click', async () => {
+  const artist = document.getElementById('edit-artist').value.trim();
+  const title  = document.getElementById('edit-title').value.trim();
+  if (!title) return;
+  await fetchAndSendLyrics(title, artist, getDur());
+});
+
+document.getElementById('btn-wrong-lyrics').addEventListener('click', () => {
+  document.getElementById('lyrics-match').hidden = true;
+  document.getElementById('lyrics-edit').hidden = false;
+});
 
 // ── Controls ────────────────────────────────────────────────
 btnPlay.addEventListener('click', () => {
@@ -506,7 +522,7 @@ async function browseDir(pathArg) {
       el.addEventListener('click', () => browseDir(el.dataset.path));
     });
     listEl.querySelectorAll('.bi-dir-add').forEach(btn => {
-      btn.addEventListener('click', (e) => { e.stopPropagation(); addFolderToQueue(btn.dataset.path); });
+      btn.addEventListener('click', (e) => { e.stopPropagation(); addFolderToQueue(btn, btn.dataset.path); });
     });
     listEl.querySelectorAll('.bi-file').forEach(el => {
       el.addEventListener('click', () => addStreamFile(el.dataset.path, el.dataset.name));
@@ -526,13 +542,21 @@ function addStreamFile(filePath, fileName) {
   addToQueue({ type: 'local', file: null, url, title, artist, duration: 0 });
 }
 
-async function addFolderToQueue(folderPath) {
+async function addFolderToQueue(btn, folderPath) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
   try {
     const r = await fetch(`/api/browse?path=${encodeURIComponent(folderPath)}`);
-    if (!r.ok) return;
+    if (!r.ok) { btn.textContent = '!'; return; }
     const data = await r.json();
     data.files.forEach(f => addStreamFile(f.path, f.name));
-  } catch (_) {}
+    btn.textContent = `+${data.files.length}`;
+  } catch (_) {
+    btn.textContent = '!';
+  } finally {
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────

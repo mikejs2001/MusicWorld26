@@ -255,6 +255,23 @@ input[type=range]::-webkit-slider-thumb {
 .lyrics-status.found     { color: #4ade80; }
 .lyrics-status.notfound  { color: #f59e0b; }
 
+.lyrics-match {
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+.match-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 0.75rem; }
+.match-label { color: var(--muted); flex-shrink: 0; }
+.match-sep   { color: var(--muted); }
+.match-val   { color: var(--text); font-weight: 500; }
+.match-preview { font-size: 0.7rem; color: var(--muted); font-style: italic; line-height: 1.4; }
+.btn-sm { font-size: 0.7rem; padding: 4px 8px; }
+
 .lyrics-edit {
   display: flex;
   flex-direction: column;
