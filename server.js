@@ -105,12 +105,17 @@ app.get('/api/browse', (req, res) => {
   if (!isAllowedPath(target)) return res.status(403).json({ error: 'Access denied' });
 
   try {
-    const entries = fs.readdirSync(target, { withFileTypes: true });
+    let readTarget = target;
+    try {
+      readTarget = fs.realpathSync(target);
+      if (readTarget !== target) console.log(`[browse] realpath → "${readTarget}"`);
+    } catch (_) {}
+    const entries = fs.readdirSync(readTarget, { withFileTypes: true });
     console.log(`[browse] readdirSync returned ${entries.length} entries`);
     const dirs = [], files = [];
     for (const e of entries) {
       if (e.name.startsWith('.')) continue;
-      const full = path.join(target, e.name);
+      const full = path.join(readTarget, e.name);
       let isDir = false, isFile = false;
       let statErr = null;
       try {
@@ -133,7 +138,7 @@ app.get('/api/browse', (req, res) => {
     files.sort((a, b) => a.name.localeCompare(b.name));
     console.log(`[browse] found ${dirs.length} dirs, ${files.length} audio files`);
 
-    const parent = path.dirname(target);
+    const parent = path.dirname(readTarget);
     // Include unique non-matching extensions so the client can show a helpful message
     const unknownExts = [...new Set(
       entries
@@ -142,8 +147,8 @@ app.get('/api/browse', (req, res) => {
         .filter(ext => ext && !AUDIO_EXT.test('.' + ext))
     )];
     res.json({
-      current: target,
-      parent: isAllowedPath(parent) && parent !== target ? parent : null,
+      current: readTarget,
+      parent: isAllowedPath(parent) && parent !== readTarget ? parent : null,
       dirs,
       files,
       unknownExts,  // non-audio extensions found (useful for debugging empty folders)
