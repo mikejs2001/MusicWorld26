@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaoke DJ Console</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dj-body">
+
+  <header class="dj-header">
+    <h1>🎤 Karaoke DJ</h1>
+    <span style="font-size:0.75rem;color:var(--muted)">Display connection</span>
+    <div id="ws-status" class="status-dot disconnected" title="TV display connection"></div>
+  </header>
+
+  <main class="dj-main">
+
+    <!-- ── Queue ───────────────────────────── -->
+    <section class="panel queue-panel">
+      <h2>Queue</h2>
+      <div id="queue-list" class="queue-list"></div>
+    </section>
+
+    <!-- ── Player ──────────────────────────── -->
+    <section class="panel player-panel">
+      <div class="now-playing">
+        <div id="np-artist" class="np-artist"></div>
+        <div id="np-title"  class="np-title">No song loaded</div>
+      </div>
+
+      <div id="yt-player-container" hidden>
+        <div id="yt-player"></div>
+      </div>
+
+      <audio id="audio-player" hidden></audio>
+
+      <div class="seek-container">
+        <span id="time-current">0:00</span>
+        <input type="range" id="seek-bar" min="0" max="100" value="0" step="0.1">
+        <span id="time-total">0:00</span>
+      </div>
+
+      <div class="controls">
+        <button id="btn-prev" class="ctrl-btn" title="Previous">⏮</button>
+        <button id="btn-play" class="ctrl-btn ctrl-play" title="Play / Pause">▶</button>
+        <button id="btn-next" class="ctrl-btn" title="Next">⏭</button>
+      </div>
+
+      <div class="volume-row">
+        <span>🔊</span>
+        <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="0.8">
+      </div>
+    </section>
+
+    <!-- ── Add Song ─────────────────────────── -->
+    <section class="panel add-panel">
+      <h2>Add Song</h2>
+
+      <div class="add-section">
+        <h3>📁 Local Files</h3>
+        <input type="file" id="file-input" accept="audio/*" multiple hidden>
+        <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
+        <div id="music-library" class="music-library"></div>
+      </div>
+
+      <div class="add-section">
+        <h3>▶️ YouTube</h3>
+        <input type="text" id="yt-url" class="url-input" placeholder="Paste YouTube URL…">
+        <button id="btn-add-yt" class="btn btn-primary">Add to Queue</button>
+        <span id="add-msg" style="font-size:0.7rem;color:#f87171;height:1em"></span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Lyrics preview for DJ reference -->
+  <div class="lyrics-preview">
+    <div id="lp-prev"    class="lp-line lp-prev"></div>
+    <div id="lp-current" class="lp-line lp-current"></div>
+    <div id="lp-next"    class="lp-line lp-next"></div>
+  </div>
+
+  <script src="js/lrc-parser.js"></script>
+  <script src="js/dj.js"></script>
+  <script src="https://www.youtube.com/iframe_api" async></script>
+</body>
+</html>

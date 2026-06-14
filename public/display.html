@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaoke Display</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Keep screen awake hint — open fullscreen on TV */
+    body.display-body { cursor: none; }
+  </style>
+</head>
+<body class="display-body">
+
+  <div id="song-info" class="song-info">Waiting for DJ…</div>
+
+  <div class="lyrics-area">
+    <div id="lyric-prev" class="lyric-line lyric-prev"></div>
+    <div id="lyric-current-container" class="lyric-current-wrapper"></div>
+    <div id="lyric-next" class="lyric-line lyric-next"></div>
+  </div>
+
+  <div class="progress-bar">
+    <div id="progress-fill" class="progress-fill"></div>
+  </div>
+
+  <div id="status" class="display-status">○ Connecting…</div>
+
+  <script src="js/lrc-parser.js"></script>
+  <script src="js/display.js"></script>
+</body>
+</html>
