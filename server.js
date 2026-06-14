@@ -85,10 +85,19 @@ function isAllowedPath(p) {
   return ALLOWED_ROOTS.some(root => resolved === root || resolved.startsWith(root + path.sep));
 }
 
+// Expand ~ to home directory (path.resolve does NOT do this)
+function expandHome(p) {
+  if (!p) return os.homedir();
+  if (p === '~') return os.homedir();
+  if (p.startsWith('~/')) return path.join(os.homedir(), p.slice(2));
+  return p;
+}
+
 const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i;
 
 app.get('/api/browse', (req, res) => {
-  const target = req.query.path ? path.resolve(decodeURIComponent(req.query.path)) : os.homedir();
+  const raw    = req.query.path ? decodeURIComponent(req.query.path) : '~';
+  const target = path.resolve(expandHome(raw));
 
   if (!isAllowedPath(target)) return res.status(403).json({ error: 'Access denied' });
 
@@ -122,7 +131,7 @@ app.get('/api/browse', (req, res) => {
 
 // Stream any audio file within allowed paths (supports range requests for seeking)
 app.get('/api/stream', (req, res) => {
-  const filePath = path.resolve(decodeURIComponent(req.query.path || ''));
+  const filePath = path.resolve(expandHome(decodeURIComponent(req.query.path || '')));
   if (!isAllowedPath(filePath)) return res.status(403).send('Access denied');
   if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
   res.sendFile(filePath);

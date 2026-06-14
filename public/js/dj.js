@@ -64,26 +64,46 @@ function setSyncStatus(state) {
 
 // ── Queue ───────────────────────────────────────────────────
 function addToQueue(item) {
+  item.lyricsStatus = 'searching';
+  item.lyrics = [];
   queue.push(item);
   renderQueue();
   if (currentIndex === -1) playSong(0);
+
+  // Fetch lyrics in the background as soon as track is queued
+  fetchLyrics(item.title, item.artist, 0).then(result => {
+    item.lyrics = result;
+    item.lyricsStatus = result.length ? 'found' : 'notfound';
+    renderQueue();
+    // If this track is already playing, push lyrics to display now
+    if (queue[currentIndex] === item) {
+      lyrics = result;
+      currentSong = { title: item.title, artist: item.artist };
+      send({ type: 'song', title: item.title, artist: item.artist, lyrics: result, duration: getDur() });
+      setLyricsStatus(item.lyricsStatus);
+    }
+  });
 }
+
+const LYRICS_ICON = { found: '✓', searching: '…', notfound: '✗' };
 
 function renderQueue() {
   if (queue.length === 0) {
     queueList.innerHTML = '<p class="empty-msg">Queue is empty — add some songs!</p>';
     return;
   }
-  queueList.innerHTML = queue.map((item, i) => `
-    <div class="queue-item ${i === currentIndex ? 'playing' : ''}" data-i="${i}">
+  queueList.innerHTML = queue.map((item, i) => {
+    const ls = item.lyricsStatus || 'searching';
+    return `<div class="queue-item ${i === currentIndex ? 'playing' : ''}" data-i="${i}">
       <span class="qi-num">${i === currentIndex ? '♪' : i + 1}</span>
       <span class="qi-info">
         <span class="qi-title">${esc(item.title || 'Unknown')}</span>
         ${item.artist ? `<span class="qi-artist">${esc(item.artist)}</span>` : ''}
       </span>
-      <span class="qi-type">${item.type === 'youtube' ? 'YT' : '♫'}</span>
+      <span class="qi-lyr qi-lyr-${ls}" title="${ls === 'found' ? 'Lyrics ready' : ls === 'searching' ? 'Finding lyrics…' : 'No lyrics found'}">${LYRICS_ICON[ls]}</span>
       <button class="qi-del" onclick="removeFromQueue(${i})">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   queueList.querySelectorAll('.queue-item').forEach(el => {
     el.addEventListener('click', e => {
@@ -134,9 +154,15 @@ async function playLocal(item) {
   await audioEl.play().catch(() => {});
   isPlaying = true;
 
-  const dur = audioEl.duration || item.duration || 0;
-  fetchAndSendLyrics(item.title, item.artist, dur);
+  pushItemLyrics(item);
   startTick();
+}
+
+function pushItemLyrics(item) {
+  lyrics = item.lyrics || [];
+  currentSong = { title: item.title, artist: item.artist };
+  send({ type: 'song', title: item.title, artist: item.artist, lyrics, duration: getDur() });
+  setLyricsStatus(item.lyricsStatus || 'searching');
 }
 
 function playYouTube(item) {
@@ -161,8 +187,7 @@ function createYTPlayer(item) {
       onReady(e) {
         e.target.playVideo();
         isPlaying = true;
-        const dur = e.target.getDuration();
-        fetchAndSendLyrics(item.title, item.artist, dur);
+        pushItemLyrics(item);
         startTick();
       },
       onStateChange(e) {
