@@ -70,6 +70,64 @@ app.get('/music/:file', (req, res) => {
   res.sendFile(filePath);
 });
 
+// ── Storage browser (for Android / Termux) ──────────────────────────────────
+
+// Directories we allow browsing — home dir covers ~/storage/* symlinks on Android
+const ALLOWED_ROOTS = [
+  os.homedir(),
+  '/sdcard',
+  '/storage/emulated/0',
+  '/storage/emulated/legacy',
+];
+
+function isAllowedPath(p) {
+  const resolved = path.resolve(p);
+  return ALLOWED_ROOTS.some(root => resolved === root || resolved.startsWith(root + path.sep));
+}
+
+const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i;
+
+app.get('/api/browse', (req, res) => {
+  const target = req.query.path ? path.resolve(decodeURIComponent(req.query.path)) : os.homedir();
+
+  if (!isAllowedPath(target)) return res.status(403).json({ error: 'Access denied' });
+
+  try {
+    const entries = fs.readdirSync(target, { withFileTypes: true });
+    const dirs = [], files = [];
+    for (const e of entries) {
+      if (e.name.startsWith('.')) continue;
+      const full = path.join(target, e.name);
+      try {
+        // Follow symlinks (needed for ~/storage/* on Android)
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) dirs.push({ name: e.name, path: full });
+        else if (AUDIO_EXT.test(e.name)) files.push({ name: e.name, path: full });
+      } catch (_) { /* skip unreadable entries */ }
+    }
+    dirs.sort((a, b) => a.name.localeCompare(b.name));
+    files.sort((a, b) => a.name.localeCompare(b.name));
+
+    const parent = path.dirname(target);
+    res.json({
+      current: target,
+      parent: isAllowedPath(parent) && parent !== target ? parent : null,
+      dirs,
+      files,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stream any audio file within allowed paths (supports range requests for seeking)
+app.get('/api/stream', (req, res) => {
+  const filePath = path.resolve(decodeURIComponent(req.query.path || ''));
+  if (!isAllowedPath(filePath)) return res.status(403).send('Access denied');
+  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+  res.sendFile(filePath);
+});
+
 // WebSocket: relay all messages between DJ and display clients
 const clients = new Set();
 wss.on('connection', (ws) => {

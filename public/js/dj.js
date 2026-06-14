@@ -374,6 +374,75 @@ async function loadLibrary() {
   }
 }
 
+// ── Storage browser ─────────────────────────────────────────
+let browseFiles = []; // files in currently-browsed folder
+
+// Shortcut buttons map to Termux ~/storage/* symlinks (created by termux-setup-storage)
+const SHORTCUTS = {
+  music:     '~/storage/music',
+  downloads: '~/storage/downloads',
+  home:      '~',
+};
+
+document.querySelectorAll('.browse-sc').forEach(btn => {
+  btn.addEventListener('click', () => browseDir(SHORTCUTS[btn.dataset.path]));
+});
+
+async function browseDir(pathArg) {
+  const listEl = document.getElementById('browse-list');
+  const pathEl = document.getElementById('browse-path');
+  listEl.innerHTML = '<p class="empty-msg">Loading…</p>';
+
+  try {
+    const r = await fetch(`/api/browse?path=${encodeURIComponent(pathArg || '')}`);
+    if (!r.ok) { listEl.innerHTML = `<p class="empty-msg">Can't read folder</p>`; return; }
+    const data = await r.json();
+    browseFiles = data.files || [];
+
+    // Show shortened path
+    const home = data.current.replace(/^\/data\/data\/com\.termux\/files\/home/, '~');
+    pathEl.textContent = home;
+
+    let html = '';
+
+    if (data.parent) {
+      html += `<div class="bi bi-dir" data-path="${esc(data.parent)}">📁 ..</div>`;
+    }
+    for (const d of data.dirs) {
+      html += `<div class="bi bi-dir" data-path="${esc(d.path)}">📁 ${esc(d.name)}</div>`;
+    }
+    if (data.files.length) {
+      html += `<div class="bi bi-add-all" data-action="addall">＋ Add all ${data.files.length} track${data.files.length > 1 ? 's' : ''}</div>`;
+      for (const f of data.files) {
+        html += `<div class="bi bi-file" data-path="${esc(f.path)}" data-name="${esc(f.name)}">🎵 ${esc(f.name)}</div>`;
+      }
+    } else if (!data.dirs.length) {
+      html = '<p class="empty-msg">No audio files here</p>';
+    }
+
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('.bi-dir').forEach(el => {
+      el.addEventListener('click', () => browseDir(el.dataset.path));
+    });
+    listEl.querySelectorAll('.bi-file').forEach(el => {
+      el.addEventListener('click', () => addStreamFile(el.dataset.path, el.dataset.name));
+    });
+    const addAllEl = listEl.querySelector('.bi-add-all');
+    if (addAllEl) addAllEl.addEventListener('click', () => {
+      browseFiles.forEach(f => addStreamFile(f.path, f.name));
+    });
+  } catch (e) {
+    listEl.innerHTML = '<p class="empty-msg">Error reading folder</p>';
+  }
+}
+
+function addStreamFile(filePath, fileName) {
+  const { artist, title } = parseFilename(fileName);
+  const url = `/api/stream?path=${encodeURIComponent(filePath)}`;
+  addToQueue({ type: 'local', file: null, url, title, artist, duration: 0 });
+}
+
 // ── Helpers ─────────────────────────────────────────────────
 function extractYTId(url) {
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);

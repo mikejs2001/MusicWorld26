@@ -242,6 +242,50 @@ input[type=range]::-webkit-slider-thumb {
 
 .empty-msg { color: var(--muted); font-size: 0.75rem; text-align: center; padding: 12px 0; }
 
+/* Storage browser */
+.browse-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; }
+.browse-sc { font-size: 0.72rem; padding: 5px 8px; }
+
+.browse-path {
+  font-size: 0.7rem;
+  color: var(--muted);
+  word-break: break-all;
+  min-height: 1em;
+}
+
+.browse-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+  overflow-y: auto;
+  gap: 2px;
+}
+
+.bi {
+  padding: 8px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s, color 0.1s;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+.bi:hover       { background: var(--surface); }
+.bi-dir         { color: var(--muted); }
+.bi-dir:hover   { color: var(--text); }
+.bi-file        { color: var(--text); }
+.bi-add-all {
+  color: var(--accent2);
+  font-size: 0.72rem;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  justify-content: center;
+}
+
 /* Lyrics preview bar */
 .lyrics-preview {
   background: var(--surface);
