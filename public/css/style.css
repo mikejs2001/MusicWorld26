@@ -193,6 +193,7 @@ input[type=range]::-webkit-slider-thumb {
 /* Add panel */
 .add-section { display: flex; flex-direction: column; gap: 8px; }
 .add-section h3 { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .btn {
   background: var(--surface);

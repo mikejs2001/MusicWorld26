@@ -82,19 +82,12 @@
       <div class="add-section">
         <h3>📁 Local Files</h3>
         <input type="file" id="file-input" accept="audio/*" multiple hidden>
-        <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
-        <div id="music-library" class="music-library"></div>
-      </div>
-
-      <div class="add-section">
-        <h3>📱 Browse Storage</h3>
-        <div id="browse-shortcuts" class="browse-shortcuts">
-          <button class="btn browse-sc" data-path="music">🎵 Music</button>
-          <button class="btn browse-sc" data-path="downloads">⬇ Downloads</button>
-          <button class="btn browse-sc" data-path="home">🏠 Home</button>
+        <input type="file" id="folder-input" webkitdirectory multiple hidden>
+        <div class="btn-row">
+          <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
+          <button class="btn" onclick="document.getElementById('folder-input').click()">Browse Folder</button>
         </div>
-        <div id="browse-path" class="browse-path"></div>
-        <div id="browse-list" class="browse-list"></div>
+        <div id="music-library" class="music-library"></div>
       </div>
 
       <div class="add-section">

@@ -1,3 +1,5 @@
+const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|3gp|3ga|amr|aiff|aif|ape|alac)$/i;
+
 // ── State ──────────────────────────────────────────────────
 const queue = [];
 let currentIndex = -1;
@@ -408,6 +410,15 @@ document.getElementById('volume-bar').addEventListener('input', e => {
 // ── File picker ─────────────────────────────────────────────
 document.getElementById('file-input').addEventListener('change', e => {
   Array.from(e.target.files).forEach(addLocalFile);
+  e.target.value = '';
+});
+
+document.getElementById('folder-input').addEventListener('change', e => {
+  const audioFiles = Array.from(e.target.files).filter(f => AUDIO_EXT.test(f.name));
+  if (!audioFiles.length) { showToast('No audio files found in that folder'); return; }
+  audioFiles.sort((a, b) => a.name.localeCompare(b.name));
+  audioFiles.forEach(addLocalFile);
+  showToast(`Added ${audioFiles.length} track${audioFiles.length !== 1 ? 's' : ''} to queue`);
   e.target.value = '';
 });
 
