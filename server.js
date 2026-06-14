@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { spawnSync } = require('child_process');
 const { parseFile } = require('music-metadata');
 
 const app = express();
@@ -110,40 +111,66 @@ app.get('/api/browse', (req, res) => {
       readTarget = fs.realpathSync(target);
       if (readTarget !== target) console.log(`[browse] realpath → "${readTarget}"`);
     } catch (_) {}
-    const entries = fs.readdirSync(readTarget, { withFileTypes: true });
-    console.log(`[browse] readdirSync returned ${entries.length} entries`);
-    const dirs = [], files = [];
-    for (const e of entries) {
-      if (e.name.startsWith('.')) continue;
-      const full = path.join(readTarget, e.name);
-      let isDir = false, isFile = false;
-      let statErr = null;
-      try {
-        // statSync follows symlinks — necessary for ~/storage/* on Android
-        const stat = fs.statSync(full);
-        isDir  = stat.isDirectory();
-        isFile = stat.isFile();
-      } catch (err) {
-        statErr = err.message;
-        // statSync failed (permission, broken symlink) — fall back to dirent type
-        isDir  = e.isDirectory();
-        isFile = e.isFile();
+
+    // Try Node's readdirSync first; fall back to shell 'ls' on Android FUSE
+    // where getdents can return 0 entries even for non-empty directories.
+    let names = null;
+    let rawEntries = fs.readdirSync(readTarget, { withFileTypes: true });
+    console.log(`[browse] readdirSync returned ${rawEntries.length} entries`);
+    if (rawEntries.length === 0) {
+      const ls = spawnSync('ls', ['-1a', readTarget], { encoding: 'utf8' });
+      console.log(`[browse] ls fallback: "${ls.stdout?.trim()}" err="${ls.stderr?.trim()}"`);
+      if (ls.status === 0 && ls.stdout) {
+        names = ls.stdout.split('\n').filter(n => n.length > 0);
       }
-      const extMatch = AUDIO_EXT.test(e.name);
-      console.log(`[browse]   "${e.name}" isDir=${isDir} isFile=${isFile} extMatch=${extMatch}${statErr ? ' statErr='+statErr : ''}`);
-      if (isDir) dirs.push({ name: e.name, path: full });
-      else if (isFile && extMatch) files.push({ name: e.name, path: full });
+    }
+
+    const dirs = [], files = [];
+    if (names !== null) {
+      // Shell fallback path — stat each name individually
+      for (const name of names) {
+        if (name.startsWith('.')) continue;
+        const full = path.join(readTarget, name);
+        let isDir = false, isFile = false;
+        try {
+          const stat = fs.statSync(full);
+          isDir  = stat.isDirectory();
+          isFile = stat.isFile();
+        } catch (_) {}
+        const extMatch = AUDIO_EXT.test(name);
+        console.log(`[browse]   (ls) "${name}" isDir=${isDir} isFile=${isFile} extMatch=${extMatch}`);
+        if (isDir) dirs.push({ name, path: full });
+        else if (isFile && extMatch) files.push({ name, path: full });
+      }
+    } else {
+      for (const e of rawEntries) {
+        if (e.name.startsWith('.')) continue;
+        const full = path.join(readTarget, e.name);
+        let isDir = false, isFile = false;
+        try {
+          const stat = fs.statSync(full);
+          isDir  = stat.isDirectory();
+          isFile = stat.isFile();
+        } catch (_) {
+          isDir  = e.isDirectory();
+          isFile = e.isFile();
+        }
+        const extMatch = AUDIO_EXT.test(e.name);
+        console.log(`[browse]   "${e.name}" isDir=${isDir} isFile=${isFile} extMatch=${extMatch}`);
+        if (isDir) dirs.push({ name: e.name, path: full });
+        else if (isFile && extMatch) files.push({ name: e.name, path: full });
+      }
     }
     dirs.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => a.name.localeCompare(b.name));
     console.log(`[browse] found ${dirs.length} dirs, ${files.length} audio files`);
 
+    const allNames = names || rawEntries.map(e => e.name);
     const parent = path.dirname(readTarget);
-    // Include unique non-matching extensions so the client can show a helpful message
     const unknownExts = [...new Set(
-      entries
-        .filter(e => !e.name.startsWith('.'))
-        .map(e => { const m = e.name.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : null; })
+      allNames
+        .filter(n => !n.startsWith('.'))
+        .map(n => { const m = n.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : null; })
         .filter(ext => ext && !AUDIO_EXT.test('.' + ext))
     )];
     res.json({
