@@ -98,8 +98,9 @@ function expandHome(p) {
 const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|3gp|3ga|amr|aiff|aif|ape|alac)$/i;
 
 app.get('/api/browse', (req, res) => {
-  const raw    = req.query.path ? decodeURIComponent(req.query.path) : '~';
+  const raw    = req.query.path || '~';
   const target = path.resolve(expandHome(raw));
+  console.log(`[browse] raw="${raw}" → target="${target}"`);
 
   if (!isAllowedPath(target)) return res.status(403).json({ error: 'Access denied' });
 
@@ -125,6 +126,7 @@ app.get('/api/browse', (req, res) => {
     }
     dirs.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => a.name.localeCompare(b.name));
+    console.log(`[browse] found ${dirs.length} dirs, ${files.length} audio files`);
 
     const parent = path.dirname(target);
     // Include unique non-matching extensions so the client can show a helpful message
@@ -148,7 +150,7 @@ app.get('/api/browse', (req, res) => {
 
 // Read ID3/audio tags from a file
 app.get('/api/metadata', async (req, res) => {
-  const filePath = path.resolve(expandHome(decodeURIComponent(req.query.path || '')));
+  const filePath = path.resolve(expandHome(req.query.path || ''));
   if (!isAllowedPath(filePath)) return res.status(403).json({ error: 'Access denied' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Not found' });
   try {
@@ -166,7 +168,7 @@ app.get('/api/metadata', async (req, res) => {
 
 // Stream any audio file within allowed paths (supports range requests for seeking)
 app.get('/api/stream', (req, res) => {
-  const filePath = path.resolve(expandHome(decodeURIComponent(req.query.path || '')));
+  const filePath = path.resolve(expandHome(req.query.path || ''));
   if (!isAllowedPath(filePath)) return res.status(403).send('Access denied');
   if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
   res.sendFile(filePath);
