@@ -151,7 +151,7 @@ function buildCurrentLine(line, nextLine) {
   if (line.words && line.words.length > 0) {
     container.innerHTML = line.words
       .map(w => `<span class="word" data-time="${w.time}">${esc(w.text)}</span>`)
-      .join(' ');
+      .join('');
   } else {
     // No word timestamps — distribute timing across words by character length
     const rawEnd = nextLine ? nextLine.time : line.time + 5;
@@ -163,7 +163,7 @@ function buildCurrentLine(line, nextLine) {
       const wt = cumTime;
       cumTime += (w.length / totalChars) * (end - line.time);
       return `<span class="word" data-time="${wt.toFixed(3)}">${esc(w)}</span>`;
-    }).join(' ');
+    }).join('');
   }
 }
 

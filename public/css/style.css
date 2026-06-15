@@ -448,6 +448,7 @@ body.display-body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  column-gap: 0.28em;
   text-align: center;
   width: 100%;
 }
