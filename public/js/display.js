@@ -124,7 +124,7 @@ function render() {
     lastLineIndex = idx;
     setText('lyric-prev', prevLine ? prevLine.text : '');
     setText('lyric-next', nextLine ? nextLine.text : '');
-    buildCurrentLine(currLine);
+    buildCurrentLine(currLine, nextLine);
   }
 
   animateCurrentLine(currLine, nextLine, t);
@@ -143,38 +143,36 @@ function clearCurrentLine() {
   setText('lyric-next', '');
 }
 
-function buildCurrentLine(line) {
+function buildCurrentLine(line, nextLine) {
   const container = document.getElementById('lyric-current-container');
   if (!line || !line.text) { container.innerHTML = ''; container.dataset.mode = ''; return; }
 
+  container.dataset.mode = 'words';
   if (line.words && line.words.length > 0) {
-    container.dataset.mode = 'words';
     container.innerHTML = line.words
       .map(w => `<span class="word" data-time="${w.time}">${esc(w.text)}</span>`)
       .join(' ');
   } else {
-    container.dataset.mode = 'fill';
-    container.innerHTML = `<span class="lyric-fill" id="lyric-fill">${esc(line.text)}</span>`;
+    // No word timestamps — distribute timing across words by character length
+    const rawEnd = nextLine ? nextLine.time : line.time + 5;
+    const end = Math.min(rawEnd, line.time + 7);
+    const words = line.text.split(/\s+/).filter(Boolean);
+    const totalChars = words.reduce((s, w) => s + w.length, 0) || 1;
+    let cumTime = line.time;
+    container.innerHTML = words.map(w => {
+      const wt = cumTime;
+      cumTime += (w.length / totalChars) * (end - line.time);
+      return `<span class="word" data-time="${wt.toFixed(3)}">${esc(w)}</span>`;
+    }).join(' ');
   }
 }
 
 function animateCurrentLine(line, nextLine, t) {
   const container = document.getElementById('lyric-current-container');
-  if (!line || !container.dataset.mode) return;
-
-  if (container.dataset.mode === 'words') {
-    container.querySelectorAll('.word').forEach(span => {
-      span.classList.toggle('sung', t >= parseFloat(span.dataset.time));
-    });
-  } else {
-    const el = document.getElementById('lyric-fill');
-    if (!el) return;
-    const start  = line.time;
-    const rawEnd = nextLine ? nextLine.time : line.time + 5;
-    const end    = Math.min(rawEnd, line.time + 7);
-    const pct    = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
-    el.style.setProperty('--pct', pct + '%');
-  }
+  if (!line || container.dataset.mode !== 'words') return;
+  container.querySelectorAll('.word').forEach(span => {
+    span.classList.toggle('sung', t >= parseFloat(span.dataset.time));
+  });
 }
 
 // ── Cued screen ─────────────────────────────────────────────
