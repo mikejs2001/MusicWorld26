@@ -122,9 +122,7 @@ function buildCurrentLine(line) {
       .join(' ');
   } else {
     container.dataset.mode = 'fill';
-    const t = esc(line.text);
-    container.innerHTML =
-      `<span class="fill-base">${t}<span class="fill-fg" id="fill-fg">${t}</span></span>`;
+    container.innerHTML = `<span class="lyric-fill" id="lyric-fill">${esc(line.text)}</span>`;
   }
 }
 
@@ -137,12 +135,12 @@ function animateCurrentLine(line, nextLine, t) {
       span.classList.toggle('sung', t >= parseFloat(span.dataset.time));
     });
   } else {
-    const fg = document.getElementById('fill-fg');
-    if (!fg) return;
+    const el = document.getElementById('lyric-fill');
+    if (!el) return;
     const start = line.time;
     const end   = nextLine ? nextLine.time : line.time + 5;
     const pct   = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
-    fg.style.width = pct + '%';
+    el.style.setProperty('--pct', pct + '%');
   }
 }
 
