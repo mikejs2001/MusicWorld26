@@ -421,22 +421,30 @@ body.display-body {
   line-height: 1.3;
   transition: opacity 0.4s;
   min-height: 1.3em;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
 }
 
 .lyric-current-wrapper {
   font-size: clamp(2.2rem, 5.5vw, 5rem);
   font-weight: 700;
-  line-height: 1.2;
-  min-height: 1.2em;
+  line-height: 1.3;
+  min-height: 1.3em;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  width: 100%;
 }
 
 /* Line-fill karaoke effect — gradient fill sweeps left→right as line progresses */
 .lyric-fill {
-  display: inline-block;
-  white-space: nowrap;
+  display: block;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
   background: linear-gradient(to right,
     var(--gold) var(--pct, 0%),
     rgba(255,255,255,0.28) var(--pct, 0%)
