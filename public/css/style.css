@@ -129,7 +129,6 @@ body.dj-body {
 .player-panel {
   align-items: center;
   justify-content: center;
-  overflow: hidden;  /* never scroll; all controls stay in view */
   gap: 8px;
   padding: 12px 16px;
 }
@@ -476,7 +475,7 @@ body.display-body {
 }
 .word.sung {
   color: #ffd700;
-  text-shadow: 0 0 30px rgba(255,215,0,0.6);
+  text-shadow: 0 0 12px rgba(255,215,0,0.45);
 }
 
 /* Progress bar */
