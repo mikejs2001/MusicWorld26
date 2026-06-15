@@ -126,7 +126,13 @@ body.dj-body {
 .qi-del:hover { color: #f87171; }
 
 /* ── Player (centre panel) ───────────────────────────────── */
-.player-panel { align-items: center; justify-content: center; }
+.player-panel {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;  /* never scroll; all controls stay in view */
+  gap: 8px;
+  padding: 12px 16px;
+}
 
 .now-playing { text-align: center; }
 .np-artist   { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
@@ -253,6 +259,14 @@ input[type=range]::-webkit-slider-thumb {
 }
 
 /* ── Add / Loading (right panel) ─────────────────────────── */
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.btn-danger { color: #f87171; border-color: rgba(248,113,113,0.3); }
+.btn-danger:hover { background: rgba(248,113,113,0.12); border-color: #f87171; }
+
 .add-section    { display: flex; flex-direction: column; gap: 8px; }
 .add-section h3 { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
 .btn-row        { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -609,6 +623,18 @@ body.display-body {
 
 /* ── Responsive (portrait tablet) ────────────────────────── */
 @media (max-width: 700px) {
-  .dj-main { grid-template-columns: 1fr; grid-template-rows: auto; }
-  .panel   { max-height: 300px; }
+  .dj-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow-y: auto;
+  }
+  .panel { max-height: 300px; }
+  /* Player panel: always show first and full-height — no clipping */
+  .player-panel {
+    order: -1;
+    max-height: none;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
 }

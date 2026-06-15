@@ -22,6 +22,10 @@ async function idbPut(val) {
   const db = await openIDB();
   return new Promise((res, rej) => { const tx = db.transaction('folders', 'readwrite'); tx.objectStore('folders').put(val); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
 }
+async function idbClearAll() {
+  const db = await openIDB();
+  return new Promise((res, rej) => { const tx = db.transaction('folders', 'readwrite'); tx.objectStore('folders').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+}
 
 function saveQueue() {
   try {
@@ -126,6 +130,29 @@ function showRestoreBar(n) {
 function hideRestoreBar() {
   const el = document.getElementById('restore-bar');
   if (el) el.hidden = true;
+}
+
+async function clearLibrary() {
+  if (!confirm('Clear all tracks from the library?')) return;
+  stopAll();
+  send({ type: 'clear' });
+  queue.length = 0;
+  loading.length = 0;
+  _pendingRelink = [];
+  currentIndex = -1;
+  currentSong  = null;
+  lyrics       = [];
+  localStorage.removeItem('karaoke-q');
+  await idbClearAll().catch(() => {});
+  hideRestoreBar();
+  npArtist.textContent = '';
+  npTitle.textContent  = 'Select a track to play';
+  document.getElementById('lyrics-status').textContent = '';
+  document.getElementById('lyrics-match').hidden = true;
+  document.getElementById('lyrics-edit').hidden  = true;
+  document.getElementById('yt-player-container').hidden = true;
+  renderQueue();
+  renderLoading();
 }
 
 // ── State ────────────────────────────────────────────────────
