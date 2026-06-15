@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaoke Display</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Keep screen awake hint — open fullscreen on TV */
+    body.display-body { cursor: none; }
+  </style>
+</head>
+<body class="display-body">
+
+  <div id="song-info" class="song-info">Waiting for DJ…</div>
+
+  <div class="lyrics-area">
+    <div id="lyric-prev" class="lyric-line lyric-prev"></div>
+    <div id="lyric-current-container" class="lyric-current-wrapper"></div>
+    <div id="lyric-next" class="lyric-line lyric-next"></div>
+  </div>
+
+  <div class="progress-bar">
+    <div id="progress-fill" class="progress-fill"></div>
+  </div>
+
+  <div id="status" class="display-status">○ Waiting…</div>
+
+  <!-- Sync panel — tap anywhere on screen to show/hide -->
+  <div id="sync-panel" class="sync-panel hidden">
+    <span class="sp-label">SYNC</span>
+    <button class="sp-btn" onclick="dispAdjSync(-0.5)" title="−0.5s">⏪</button>
+    <button class="sp-btn" onclick="dispAdjSync(-0.1)" title="−0.1s">◀</button>
+    <span id="sp-val" class="sp-val">+0.0s</span>
+    <button class="sp-btn" onclick="dispAdjSync(+0.1)" title="+0.1s">▶</button>
+    <button class="sp-btn" onclick="dispAdjSync(+0.5)" title="+0.5s">⏩</button>
+    <button class="sp-btn sp-reset" onclick="dispResetSync()" title="Reset">✕</button>
+  </div>
+
+  <!-- Cast hint — tap the Chrome menu → Cast → Cast tab → pick your Chromecast -->
+  <div id="cast-hint" class="cast-hint">
+    Cast this tab to your TV:<br>
+    Chrome menu → <strong>Cast…</strong> → Cast tab → pick your Chromecast
+  </div>
+
+  <script src="js/lrc-parser.js"></script>
+  <script src="js/display.js"></script>
+</body>
+</html>

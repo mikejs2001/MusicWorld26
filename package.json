@@ -1,0 +1,13 @@
+{
+  "name": "musicworld26-karaoke",
+  "version": "1.0.0",
+  "description": "Karaoke app with synchronized lyrics display",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "music-metadata": "^11.13.0",
+    "ws": "^8.16.0"
+  }
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karaoke DJ Console</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dj-body">
+
+  <header class="dj-header">
+    <h1>🎤 Karaoke DJ</h1>
+    <button class="btn btn-open-display" onclick="openDisplay()" title="Open lyrics screen in a new tab, then cast that tab to Chromecast">
+      📺 Open Display Screen
+    </button>
+    <span id="sync-status" class="sync-status" title="Sync with display tab"></span>
+  </header>
+
+  <main class="dj-main">
+
+    <!-- ── Ready to Play (Left) ──────────────────────────── -->
+    <section class="panel ready-panel">
+      <h2>Ready to Play</h2>
+      <div id="restore-bar" class="restore-bar" hidden>
+        <span><span class="restore-count">0</span> tracks need audio re-linked</span>
+        <button class="btn btn-sm btn-primary" onclick="requestFolderRestore()">Restore</button>
+      </div>
+      <div id="queue-list" class="queue-list"></div>
+    </section>
+
+    <!-- ── Player (Centre) ───────────────────────────────── -->
+    <section class="panel player-panel">
+      <div class="now-playing">
+        <div id="np-artist" class="np-artist"></div>
+        <div id="np-title"  class="np-title">Select a track to play</div>
+        <div id="lyrics-status" class="lyrics-status"></div>
+      </div>
+
+      <!-- Lyrics match info (shown when lyrics are found) -->
+      <div id="lyrics-match" class="lyrics-match" hidden>
+        <div class="match-row">
+          <span class="match-label">Matched:</span>
+          <span id="match-artist" class="match-val"></span>
+          <span class="match-sep">—</span>
+          <span id="match-title" class="match-val"></span>
+        </div>
+        <div id="match-preview" class="match-preview"></div>
+        <button id="btn-wrong-lyrics" class="btn btn-sm">✗ Wrong song? Search again</button>
+      </div>
+
+      <!-- Manual lyrics override -->
+      <div id="lyrics-edit" class="lyrics-edit" hidden>
+        <input type="text" id="edit-artist" class="url-input" placeholder="Artist name">
+        <input type="text" id="edit-title"  class="url-input" placeholder="Song title">
+        <button id="btn-find-lyrics" class="btn btn-primary">Find Lyrics</button>
+      </div>
+
+      <div id="yt-player-container" hidden>
+        <div id="yt-player"></div>
+      </div>
+
+      <audio id="audio-player" hidden></audio>
+
+      <div class="seek-container">
+        <span id="time-current">0:00</span>
+        <input type="range" id="seek-bar" min="0" max="100" value="0" step="0.1">
+        <span id="time-total">0:00</span>
+      </div>
+
+      <div class="controls">
+        <button id="btn-prev" class="ctrl-btn" title="Previous">⏮</button>
+        <button id="btn-play" class="ctrl-btn ctrl-play" title="Play / Pause">▶</button>
+        <button id="btn-next" class="ctrl-btn" title="Next">⏭</button>
+      </div>
+
+      <div class="volume-row">
+        <span>🔊</span>
+        <input type="range" id="volume-bar" min="0" max="1" step="0.01" value="0.8">
+      </div>
+
+      <div class="sync-row">
+        <span class="sync-label">Lyrics sync</span>
+        <button class="sync-btn" onclick="adjustSync(-0.5)" title="−0.5s (lyrics later)">⏪</button>
+        <button class="sync-btn" onclick="adjustSync(-0.1)" title="−0.1s">◀</button>
+        <span id="sync-val" class="sync-val">+0.0s</span>
+        <button class="sync-btn" onclick="adjustSync(+0.1)" title="+0.1s">▶</button>
+        <button class="sync-btn" onclick="adjustSync(+0.5)" title="+0.5s (lyrics earlier)">⏩</button>
+        <button class="sync-btn sync-reset" onclick="resetSync()" title="Reset to 0">✕</button>
+      </div>
+    </section>
+
+    <!-- ── Add / Loading (Right) ─────────────────────────── -->
+    <section class="panel loading-panel">
+      <div class="panel-header-row">
+        <h2>Add Tracks</h2>
+        <button class="btn btn-sm btn-danger" onclick="clearLibrary()" title="Remove all tracks and clear saved queue">🗑 Clear Library</button>
+      </div>
+
+      <div class="add-section">
+        <h3>📁 Local Files</h3>
+        <input type="file" id="file-input" accept="audio/*" multiple hidden>
+        <input type="file" id="folder-input" webkitdirectory multiple hidden>
+        <div class="btn-row">
+          <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
+          <button class="btn" onclick="pickFolder()">Browse Folder</button>
+        </div>
+        <div id="music-library" class="music-library"></div>
+      </div>
+
+      <div class="add-section">
+        <h3>▶️ YouTube</h3>
+        <input type="text" id="yt-url" class="url-input" placeholder="Paste YouTube URL…">
+        <button id="btn-add-yt" class="btn btn-primary">Add</button>
+        <span id="add-msg" style="font-size:0.7rem;color:#f87171;min-height:1em;display:block"></span>
+      </div>
+
+      <div class="loading-section">
+        <h3>Processing</h3>
+        <div id="loading-list" class="loading-list"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Lyrics preview bar for DJ reference -->
+  <div class="lyrics-preview">
+    <div id="lp-prev"    class="lp-line lp-prev"></div>
+    <div id="lp-current" class="lp-line lp-current"></div>
+    <div id="lp-next"    class="lp-line lp-next"></div>
+  </div>
+
+  <script src="js/lrc-parser.js"></script>
+  <script src="js/dj.js"></script>
+  <script src="https://www.youtube.com/iframe_api" async></script>
+</body>
+</html>
