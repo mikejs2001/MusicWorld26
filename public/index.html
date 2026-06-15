@@ -80,9 +80,12 @@
 
       <div class="sync-row">
         <span class="sync-label">Lyrics sync</span>
-        <button class="sync-btn" onclick="adjustSync(-0.1)" title="Lyrics later">◀</button>
+        <button class="sync-btn" onclick="adjustSync(-0.5)" title="−0.5s (lyrics later)">⏪</button>
+        <button class="sync-btn" onclick="adjustSync(-0.1)" title="−0.1s">◀</button>
         <span id="sync-val" class="sync-val">+0.0s</span>
-        <button class="sync-btn" onclick="adjustSync(+0.1)" title="Lyrics earlier">▶</button>
+        <button class="sync-btn" onclick="adjustSync(+0.1)" title="+0.1s">▶</button>
+        <button class="sync-btn" onclick="adjustSync(+0.5)" title="+0.5s (lyrics earlier)">⏩</button>
+        <button class="sync-btn sync-reset" onclick="resetSync()" title="Reset to 0">✕</button>
       </div>
     </section>
 

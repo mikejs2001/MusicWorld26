@@ -178,6 +178,7 @@ channel.onmessage = (e) => {
     channel.postMessage({ type: 'song', ...currentSong, lyrics, duration: getDur() });
     channel.postMessage({ type: 'time', t: getTime(), duration: getDur() });
     if (!isPlaying) channel.postMessage({ type: 'pause', t: getTime() });
+    channel.postMessage({ type: 'offset', value: syncOffset });
   }
 };
 
@@ -520,7 +521,7 @@ function startTick() {
     send({ type: 'time', t, duration: dur });
     updateSeekUI(t, dur);
     updateLyricsPreview(t);
-  }, 200);
+  }, 50);
 }
 
 function getTime() {
@@ -609,13 +610,28 @@ document.getElementById('btn-wrong-lyrics').addEventListener('click', () => {
 });
 
 // ── Lyrics sync offset ────────────────────────────────────────
-let syncOffset = 0;
+let syncOffset = (function () {
+  const v = parseFloat(localStorage.getItem('karaoke-sync'));
+  return isNaN(v) ? 0 : v;
+})();
+
+function _showSync() {
+  const el = document.getElementById('sync-val');
+  if (el) el.textContent = (syncOffset >= 0 ? '+' : '') + syncOffset.toFixed(1) + 's';
+}
 
 function adjustSync(delta) {
   syncOffset = Math.round((syncOffset + delta) * 10) / 10;
-  document.getElementById('sync-val').textContent =
-    (syncOffset >= 0 ? '+' : '') + syncOffset.toFixed(1) + 's';
+  _showSync();
   send({ type: 'offset', value: syncOffset });
+  try { localStorage.setItem('karaoke-sync', String(syncOffset)); } catch (_) {}
+}
+
+function resetSync() {
+  syncOffset = 0;
+  _showSync();
+  send({ type: 'offset', value: 0 });
+  try { localStorage.setItem('karaoke-sync', '0'); } catch (_) {}
 }
 
 // ── Player controls ───────────────────────────────────────────
@@ -823,3 +839,4 @@ loadLibrary();
 renderQueue();
 renderLoading();
 restoreLibrary();
+_showSync();

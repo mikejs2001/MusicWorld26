@@ -138,8 +138,10 @@ function animateCurrentLine(line, nextLine, t) {
     const el = document.getElementById('lyric-fill');
     if (!el) return;
     const start = line.time;
-    const end   = nextLine ? nextLine.time : line.time + 5;
-    const pct   = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
+    // Cap fill duration at 7s so the sweep stays lively through instrumental breaks
+    const rawEnd = nextLine ? nextLine.time : line.time + 5;
+    const end    = Math.min(rawEnd, line.time + 7);
+    const pct    = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
     el.style.setProperty('--pct', pct + '%');
   }
 }
