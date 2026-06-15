@@ -40,6 +40,82 @@ app.get('/api/lyrics/search', async (req, res) => {
   }
 });
 
+// ── BPM lookup ─────────────────────────────────────────────────────────────
+// Primary: Deezer (free, no key). Optional: Spotify (set env vars for better
+// coverage — SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET from developer.spotify.com)
+
+let _spotifyToken = null;
+let _spotifyExpiry = 0;
+
+async function getSpotifyToken() {
+  const id = process.env.SPOTIFY_CLIENT_ID;
+  const sec = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!id || !sec) return null;
+  if (_spotifyToken && Date.now() < _spotifyExpiry) return _spotifyToken;
+  try {
+    const r = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${id}:${sec}`).toString('base64'),
+      },
+      body: 'grant_type=client_credentials',
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    _spotifyToken  = d.access_token;
+    _spotifyExpiry = Date.now() + (d.expires_in - 60) * 1000;
+    return _spotifyToken;
+  } catch (_) { return null; }
+}
+
+async function bpmFromSpotify(title, artist) {
+  try {
+    const token = await getSpotifyToken();
+    if (!token) return null;
+    const q = artist ? `track:${title} artist:${artist}` : `track:${title}`;
+    const sr = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!sr.ok) return null;
+    const sd = await sr.json();
+    const trackId = sd.tracks?.items?.[0]?.id;
+    if (!trackId) return null;
+    const fr = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`,
+      { headers: { Authorization: `Bearer ${token}` } });
+    if (!fr.ok) return null;
+    const fd = await fr.json();
+    return fd.tempo ? Math.round(fd.tempo) : null;
+  } catch (_) { return null; }
+}
+
+async function bpmFromDeezer(title, artist) {
+  try {
+    const q = artist ? `${artist} ${title}` : title;
+    const sr = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=3`);
+    if (!sr.ok) return null;
+    const sd = await sr.json();
+    const firstId = sd.data?.[0]?.id;
+    if (!firstId) return null;
+    const tr = await fetch(`https://api.deezer.com/track/${firstId}`);
+    if (!tr.ok) return null;
+    const td = await tr.json();
+    return (td.bpm && td.bpm > 0) ? Math.round(td.bpm) : null;
+  } catch (_) { return null; }
+}
+
+app.get('/api/bpm', async (req, res) => {
+  const { track_name, artist_name } = req.query;
+  if (!track_name) return res.status(400).json({ error: 'track_name required' });
+  // Spotify first (more complete), then Deezer
+  const spotifyBpm = await bpmFromSpotify(track_name, artist_name);
+  if (spotifyBpm) return res.json({ bpm: spotifyBpm, source: 'spotify' });
+  const deezerBpm = await bpmFromDeezer(track_name, artist_name);
+  if (deezerBpm) return res.json({ bpm: deezerBpm, source: 'deezer' });
+  res.status(404).json({ error: 'BPM not found' });
+});
+
 // YouTube oEmbed proxy
 app.get('/api/ytinfo', async (req, res) => {
   try {

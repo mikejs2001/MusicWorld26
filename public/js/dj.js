@@ -32,6 +32,7 @@ function saveQueue() {
       artistDiscovered: item.artistDiscovered || false,
       lyrics:           item.lyrics   || [],
       lyricsMeta:       item.lyricsMeta || null,
+      bpm:              item.bpm      || null,
       videoId:          item.videoId  || null,
       url:   (item.url && !item.url.startsWith('blob:')) ? item.url : null,
       fileName: item.fileName || null,
@@ -232,6 +233,10 @@ async function processItem(item) {
     item.lyrics     = result.lines;
     item.lyricsMeta = result.meta;
     if (result.meta.artistName && !item.artist) item.artist = result.meta.artistName;
+    // Step 4: BPM lookup (using confirmed title+artist for best accuracy)
+    item.loadStatus = 'finding-bpm';
+    renderLoading();
+    item.bpm = await fetchBPM(item.title, item.artist);
     item.loadStatus = 'ready';
     renderLoading();
     setTimeout(() => promoteToQueue(item), 700);
@@ -321,6 +326,16 @@ async function findExactLyrics(title, artist, duration) {
   return null;
 }
 
+async function fetchBPM(title, artist) {
+  try {
+    const p = new URLSearchParams({ track_name: title });
+    if (artist) p.set('artist_name', artist);
+    const r = await fetch(`/api/bpm?${p}`);
+    if (r.ok) { const d = await r.json(); return d.bpm || null; }
+  } catch (_) {}
+  return null;
+}
+
 function normalize(s) {
   if (!s) return '';
   return s.toLowerCase()
@@ -378,13 +393,14 @@ function renderLoading() {
   el.innerHTML = loading.map((item, i) => {
     const st = item.loadStatus;
     let statusHtml;
-    if (st === 'queued' || st === 'finding-artist' || st === 'finding-lyrics') {
+    if (st === 'queued' || st === 'finding-artist' || st === 'finding-lyrics' || st === 'finding-bpm') {
       const msg = st === 'finding-artist' ? 'Finding artist…'
                 : st === 'finding-lyrics' ? 'Finding lyrics…'
+                : st === 'finding-bpm'    ? 'Finding BPM…'
                 : 'Waiting…';
       statusHtml = `<span class="li-spin">↻</span><span class="li-msg">${msg}</span>`;
     } else if (st === 'ready') {
-      statusHtml = `<span class="li-ok">✓ Ready</span>`;
+      statusHtml = `<span class="li-ok">✓ Ready${item.bpm ? ` · ${item.bpm} BPM` : ''}</span>`;
     } else {
       statusHtml = `<span class="li-fail">✗ No lyrics</span>`;
     }
@@ -422,7 +438,7 @@ function renderQueue() {
       <span class="qi-num">${i === currentIndex ? '♪' : i + 1}</span>
       <span class="qi-info">
         <span class="qi-title">${esc(item.title || 'Unknown')}</span>
-        ${item.artist ? `<span class="qi-artist">${esc(item.artist)}</span>` : ''}
+        <span class="qi-artist">${[item.artist, item.bpm ? item.bpm + ' BPM' : ''].filter(Boolean).join(' · ')}</span>
       </span>
       <button class="qi-del" onclick="removeFromQueue(${i})">×</button>
     </div>
