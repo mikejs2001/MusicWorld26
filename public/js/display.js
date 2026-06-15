@@ -4,8 +4,11 @@ let lastKnownTime = 0;
 let lastKnownAt = performance.now();
 let isPlaying = false;
 let totalDuration = 0;
-let lastLineIndex = -2; // force initial render
-let syncOffset = 0;    // seconds; positive = lyrics fire earlier
+let lastLineIndex = -2;
+let syncOffset = 0;
+let displayState = 'waiting'; // 'waiting' | 'cued' | 'countdown' | 'playing'
+let ws = null;
+let _syncHideTimer = null;
 
 // ── Sync: BroadcastChannel (same browser) + WebSocket (cross-device) ──
 
@@ -13,19 +16,36 @@ const channel = new BroadcastChannel('karaoke');
 channel.onmessage = (e) => handleMessage(e.data);
 
 function connectWS() {
-  // Only attempt WebSocket when served over http (not file://)
   if (location.protocol === 'file:') return;
   try {
-    const ws = new WebSocket(`ws://${location.host}`);
+    ws = new WebSocket(`ws://${location.host}`);
     ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
-    ws.onclose   = () => setTimeout(connectWS, 3000);
+    ws.onclose   = () => { ws = null; setTimeout(connectWS, 3000); };
     ws.onerror   = () => ws.close();
   } catch (_) {}
+}
+
+function sendToDJ(msg) {
+  channel.postMessage(msg);
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
 }
 
 function handleMessage(msg) {
   hideCastHint();
   switch (msg.type) {
+    case 'cue':
+      currentSong  = { title: msg.title || '', artist: msg.artist || '' };
+      lyrics       = [];
+      totalDuration = 0;
+      displayState = 'cued';
+      updateSongInfo();
+      showCued();
+      setStatus('○ Ready', '#ffd700');
+      break;
+    case 'countdown':
+      displayState = 'countdown';
+      showCountdown(msg.n);
+      break;
     case 'song':
       currentSong   = { title: msg.title || '', artist: msg.artist || '' };
       lyrics        = msg.lyrics || [];
@@ -34,7 +54,9 @@ function handleMessage(msg) {
       lastKnownAt   = performance.now();
       isPlaying     = true;
       lastLineIndex = -2;
+      displayState  = 'playing';
       updateSongInfo();
+      clearCurrentLine();
       setStatus('● LIVE', '#4ade80');
       break;
     case 'time':
@@ -53,10 +75,12 @@ function handleMessage(msg) {
       break;
     case 'offset':
       syncOffset = msg.value || 0;
+      updateSyncPanel();
       break;
     case 'clear':
       currentSong = null;
       lyrics = [];
+      displayState = 'waiting';
       showWaiting();
       break;
   }
@@ -82,7 +106,7 @@ function findLineIndex(t) {
 
 function render() {
   requestAnimationFrame(render);
-  if (!currentSong) return;
+  if (displayState !== 'playing') return;
 
   const t   = getTime();
   const idx = findLineIndex(t);
@@ -92,8 +116,8 @@ function render() {
       Math.min(100, (t / totalDuration) * 100) + '%';
   }
 
-  const currLine = idx >= 0              ? lyrics[idx]     : null;
-  const prevLine = idx > 0              ? lyrics[idx - 1] : null;
+  const currLine = idx >= 0               ? lyrics[idx]     : null;
+  const prevLine = idx > 0               ? lyrics[idx - 1] : null;
   const nextLine = idx < lyrics.length - 1 ? lyrics[idx + 1] : null;
 
   if (idx !== lastLineIndex) {
@@ -109,6 +133,14 @@ function render() {
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el && el.textContent !== text) el.textContent = text;
+}
+
+function clearCurrentLine() {
+  const c = document.getElementById('lyric-current-container');
+  c.innerHTML = '';
+  c.dataset.mode = '';
+  setText('lyric-prev', '');
+  setText('lyric-next', '');
 }
 
 function buildCurrentLine(line) {
@@ -137,12 +169,40 @@ function animateCurrentLine(line, nextLine, t) {
   } else {
     const el = document.getElementById('lyric-fill');
     if (!el) return;
-    const start = line.time;
-    // Cap fill duration at 7s so the sweep stays lively through instrumental breaks
+    const start  = line.time;
     const rawEnd = nextLine ? nextLine.time : line.time + 5;
     const end    = Math.min(rawEnd, line.time + 7);
     const pct    = Math.max(0, Math.min(100, ((t - start) / (end - start)) * 100));
     el.style.setProperty('--pct', pct + '%');
+  }
+}
+
+// ── Cued screen ─────────────────────────────────────────────
+
+function showCued() {
+  clearCurrentLine();
+  document.getElementById('progress-fill').style.width = '0%';
+  const c = document.getElementById('lyric-current-container');
+  c.innerHTML = `<button class="start-btn" id="start-btn">▶ TAP TO START</button>`;
+  document.getElementById('start-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    sendToDJ({ type: 'start' });
+  });
+}
+
+// ── Countdown screen ────────────────────────────────────────
+
+function showCountdown(n) {
+  const c = document.getElementById('lyric-current-container');
+  c.dataset.mode = '';
+  setText('lyric-prev', '');
+  setText('lyric-next', '');
+  if (n > 0) {
+    c.innerHTML = `<span class="countdown-num">${n}</span>`;
+    setStatus('● Starting…', '#4ade80');
+  } else {
+    c.innerHTML = '';
+    // 'song' message arrives from DJ immediately after this to start lyric display
   }
 }
 
@@ -156,9 +216,7 @@ function updateSongInfo() {
 
 function showWaiting() {
   document.getElementById('song-info').textContent = 'Waiting for DJ…';
-  ['lyric-prev', 'lyric-next'].forEach(id => setText(id, ''));
-  const c = document.getElementById('lyric-current-container');
-  c.innerHTML = ''; c.dataset.mode = '';
+  clearCurrentLine();
   document.getElementById('progress-fill').style.width = '0%';
   setStatus('○ Waiting…', '#888');
 }
@@ -177,8 +235,44 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Sync panel on display ───────────────────────────────────
+
+function dispAdjSync(delta) {
+  syncOffset = Math.round((syncOffset + delta) * 10) / 10;
+  updateSyncPanel();
+  sendToDJ({ type: 'offset', value: syncOffset });
+  _armSyncHide();
+}
+
+function dispResetSync() {
+  syncOffset = 0;
+  updateSyncPanel();
+  sendToDJ({ type: 'offset', value: 0 });
+  _armSyncHide();
+}
+
+function updateSyncPanel() {
+  const el = document.getElementById('sp-val');
+  if (el) el.textContent = (syncOffset >= 0 ? '+' : '') + syncOffset.toFixed(1) + 's';
+}
+
+function _armSyncHide() {
+  clearTimeout(_syncHideTimer);
+  _syncHideTimer = setTimeout(() => {
+    document.getElementById('sync-panel')?.classList.add('hidden');
+  }, 5000);
+}
+
+// Tap anywhere on screen to show sync panel (ignore taps on interactive elements)
+document.body.addEventListener('click', (e) => {
+  if (e.target.closest('#start-btn, #sync-panel')) return;
+  const panel = document.getElementById('sync-panel');
+  const nowHidden = panel.classList.toggle('hidden');
+  if (!nowHidden) _armSyncHide();
+  else clearTimeout(_syncHideTimer);
+});
+
 // ── Init ────────────────────────────────────────────────────
 connectWS();
 requestAnimationFrame(render);
-// Ask DJ console to re-send current song state (handles opening display tab late)
 channel.postMessage({ type: 'hello' });

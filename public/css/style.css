@@ -497,6 +497,85 @@ body.display-body {
   backdrop-filter: blur(6px);
 }
 
+/* ── Display: cued / countdown / start button ───────────── */
+.start-btn {
+  font-size: clamp(1.6rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 14px;
+  padding: 0.5em 1.8em;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  user-select: none;
+}
+.start-btn:hover, .start-btn:active {
+  background: rgba(255,215,0,0.15);
+  border-color: var(--gold, #ffd700);
+  color: var(--gold, #ffd700);
+}
+
+.countdown-num {
+  font-size: clamp(8rem, 25vw, 18rem);
+  font-weight: 900;
+  color: var(--gold, #ffd700);
+  text-shadow: 0 0 80px rgba(255,215,0,0.5);
+  line-height: 1;
+  animation: cd-pulse 0.85s ease-out;
+}
+@keyframes cd-pulse {
+  from { transform: scale(1.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Display: sync panel (tap screen to reveal) ─────────── */
+.sync-panel {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.78);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 40px;
+  padding: 10px 22px;
+  backdrop-filter: blur(10px);
+  transition: opacity 0.35s, transform 0.35s;
+  z-index: 100;
+  user-select: none;
+}
+.sync-panel.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(10px);
+}
+.sp-label { font-size: 0.7rem; color: rgba(255,255,255,0.35); letter-spacing: 0.1em; margin-right: 4px; }
+.sp-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+.sp-btn:hover, .sp-btn:active { color: #fff; background: rgba(255,255,255,0.12); }
+.sp-val {
+  color: #fff;
+  font-size: 1rem;
+  min-width: 54px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sp-reset { color: rgba(255,255,255,0.35); font-size: 1rem; }
+
 /* ── Toast notification ──────────────────────────────────── */
 .toast {
   position: fixed;

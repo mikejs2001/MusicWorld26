@@ -26,6 +26,17 @@
 
   <div id="status" class="display-status">○ Waiting…</div>
 
+  <!-- Sync panel — tap anywhere on screen to show/hide -->
+  <div id="sync-panel" class="sync-panel hidden">
+    <span class="sp-label">SYNC</span>
+    <button class="sp-btn" onclick="dispAdjSync(-0.5)" title="−0.5s">⏪</button>
+    <button class="sp-btn" onclick="dispAdjSync(-0.1)" title="−0.1s">◀</button>
+    <span id="sp-val" class="sp-val">+0.0s</span>
+    <button class="sp-btn" onclick="dispAdjSync(+0.1)" title="+0.1s">▶</button>
+    <button class="sp-btn" onclick="dispAdjSync(+0.5)" title="+0.5s">⏩</button>
+    <button class="sp-btn sp-reset" onclick="dispResetSync()" title="Reset">✕</button>
+  </div>
+
   <!-- Cast hint — tap the Chrome menu → Cast → Cast tab → pick your Chromecast -->
   <div id="cast-hint" class="cast-hint">
     Cast this tab to your TV:<br>

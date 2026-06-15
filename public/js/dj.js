@@ -130,15 +130,20 @@ function hideRestoreBar() {
 // ── State ────────────────────────────────────────────────────
 const loading = []; // tracks being processed (right panel)
 const queue   = []; // tracks ready to play   (left panel)
-let currentIndex = -1;
-let lyrics    = [];
-let isPlaying = false;
-let source    = null; // 'local' | 'youtube'
-let ytPlayer  = null;
-let ytApiReady  = false;
-let pendingYTItem = null;
-let tickInterval  = null;
-let currentSong   = null;
+let currentIndex  = -1;
+let lyrics        = [];
+let isPlaying     = false;
+let songCued      = false;   // loaded but not yet started
+let source        = null;    // 'local' | 'youtube'
+let ytPlayer      = null;
+let ytApiReady    = false;
+let ytReadyForPlay = false;  // YT player finished loading
+let pendingYTPlay  = false;  // countdown fired before YT was ready
+let pendingYTItem  = null;
+let tickInterval   = null;
+let currentSong    = null;
+let _counting      = false;
+let _countdownTimer = null;
 
 // ── DOM shortcuts ─────────────────────────────────────────────
 const audioEl   = document.getElementById('audio-player');
@@ -175,11 +180,16 @@ function send(msg) {
 
 channel.onmessage = (e) => {
   if (e.data.type === 'hello' && currentSong) {
-    channel.postMessage({ type: 'song', ...currentSong, lyrics, duration: getDur() });
-    channel.postMessage({ type: 'time', t: getTime(), duration: getDur() });
-    if (!isPlaying) channel.postMessage({ type: 'pause', t: getTime() });
+    if (songCued || _counting) {
+      channel.postMessage({ type: 'cue', title: currentSong.title, artist: currentSong.artist });
+    } else {
+      channel.postMessage({ type: 'song', ...currentSong, lyrics, duration: getDur() });
+      channel.postMessage({ type: 'time', t: getTime(), duration: getDur() });
+      if (!isPlaying) channel.postMessage({ type: 'pause', t: getTime() });
+    }
     channel.postMessage({ type: 'offset', value: syncOffset });
   }
+  if (e.data.type === 'start') startWithCountdown();
 };
 
 function setSyncStatus(state) {
@@ -435,6 +445,8 @@ function removeFromQueue(idx) {
 }
 
 // ── Playback ──────────────────────────────────────────────────
+
+// Load a song into position without starting it; display shows START button
 async function playSong(idx) {
   if (idx < 0 || idx >= queue.length) return;
   currentIndex = idx;
@@ -443,14 +455,80 @@ async function playSong(idx) {
   stopAll();
   npArtist.textContent = item.artist || '';
   npTitle.textContent  = item.title  || 'Loading…';
-  btnPlay.textContent  = '⏸';
+  btnPlay.textContent  = '▶';
+  songCued = true;
   renderQueue();
 
-  if (item.type === 'youtube') playYouTube(item);
-  else await playLocal(item);
+  lyrics = item.lyrics || [];
+  currentSong = { title: item.title, artist: item.artist };
+  source = item.type === 'youtube' ? 'youtube' : 'local';
+  document.getElementById('edit-artist').value = item.artist || '';
+  document.getElementById('edit-title').value  = item.title  || '';
+  setLyricsStatus('found', item.lyricsMeta || null, lyrics);
+
+  if (item.type === 'youtube') {
+    document.getElementById('yt-player-container').hidden = false;
+    ytReadyForPlay = false;
+    pendingYTPlay  = false;
+    if (ytPlayer && typeof ytPlayer.cueVideoById === 'function') {
+      ytPlayer.cueVideoById(item.videoId);
+      ytReadyForPlay = true;
+    } else if (ytApiReady) {
+      createYTPlayer(item);
+    } else {
+      pendingYTItem = item;
+    }
+  } else {
+    document.getElementById('yt-player-container').hidden = true;
+    audioEl.src = item.url || URL.createObjectURL(item.file);
+    audioEl.volume = +document.getElementById('volume-bar').value;
+    audioEl.load();
+  }
+
+  send({ type: 'cue', title: item.title, artist: item.artist });
+}
+
+// 3-2-1 countdown then start audio
+function startWithCountdown() {
+  if (_counting || !currentSong) return;
+  _counting = true;
+  songCued  = false;
+  btnPlay.textContent = '…';
+  let n = 3;
+
+  const tick = () => {
+    send({ type: 'countdown', n });
+    if (n === 0) {
+      _counting = false;
+      _countdownTimer = null;
+      if (source === 'local') {
+        audioEl.play().catch(() => {});
+        isPlaying = true;
+        btnPlay.textContent = '⏸';
+        pushLyricsNow();
+        startTick();
+      } else if (source === 'youtube') {
+        btnPlay.textContent = '⏸';
+        if (ytPlayer && ytReadyForPlay) {
+          try { ytPlayer.playVideo(); isPlaying = true; pushLyricsNow(); startTick(); } catch (_) {}
+        } else {
+          pendingYTPlay = true; // will start when player fires onReady
+        }
+      }
+      return;
+    }
+    n--;
+    _countdownTimer = setTimeout(tick, 1000);
+  };
+  tick();
 }
 
 function stopAll() {
+  _counting = false;
+  if (_countdownTimer) { clearTimeout(_countdownTimer); _countdownTimer = null; }
+  songCued = false;
+  pendingYTPlay  = false;
+  ytReadyForPlay = false;
   clearInterval(tickInterval);
   audioEl.pause();
   audioEl.removeAttribute('src');
@@ -458,15 +536,11 @@ function stopAll() {
   isPlaying = false;
 }
 
-async function playLocal(item) {
-  source = 'local';
-  document.getElementById('yt-player-container').hidden = true;
-  audioEl.src = item.url || URL.createObjectURL(item.file);
-  audioEl.volume = +document.getElementById('volume-bar').value;
-  await audioEl.play().catch(() => {});
-  isPlaying = true;
-  pushItemLyrics(item);
-  startTick();
+// Send the 'song' message to display (after countdown ends)
+function pushLyricsNow() {
+  send({ type: 'song', title: currentSong.title, artist: currentSong.artist, lyrics, duration: getDur() });
+  send({ type: 'offset', value: syncOffset });
+  setLyricsStatus('found', queue[currentIndex]?.lyricsMeta || null, lyrics);
 }
 
 function pushItemLyrics(item) {
@@ -478,25 +552,20 @@ function pushItemLyrics(item) {
   setLyricsStatus('found', item.lyricsMeta || null, lyrics);
 }
 
-function playYouTube(item) {
-  source = 'youtube';
-  document.getElementById('yt-player-container').hidden = false;
-  if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-    ytPlayer.loadVideoById(item.videoId);
-  } else if (ytApiReady) {
-    createYTPlayer(item);
-  } else {
-    pendingYTItem = item;
-  }
-}
-
 function createYTPlayer(item) {
+  ytReadyForPlay = false;
   ytPlayer = new YT.Player('yt-player', {
     height: '140', width: '248',
-    videoId: item.videoId,
-    playerVars: { autoplay: 1, rel: 0, modestbranding: 1 },
+    playerVars: { autoplay: 0, rel: 0, modestbranding: 1 },
     events: {
-      onReady(e) { e.target.playVideo(); isPlaying = true; pushItemLyrics(item); startTick(); },
+      onReady(e) {
+        e.target.cueVideoById(item.videoId);
+        ytReadyForPlay = true;
+        if (pendingYTPlay) {
+          pendingYTPlay = false;
+          try { e.target.playVideo(); isPlaying = true; pushLyricsNow(); startTick(); } catch (_) {}
+        }
+      },
       onStateChange(e) {
         if      (e.data === YT.PlayerState.PLAYING) { isPlaying = true;  send({ type: 'resume', t: e.target.getCurrentTime() }); }
         else if (e.data === YT.PlayerState.PAUSED)  { isPlaying = false; send({ type: 'pause',  t: e.target.getCurrentTime() }); }
@@ -511,6 +580,18 @@ window.onYouTubeIframeAPIReady = function () {
   ytApiReady = true;
   if (pendingYTItem) { createYTPlayer(pendingYTItem); pendingYTItem = null; }
 };
+
+function playYouTube(item) {
+  source = 'youtube';
+  document.getElementById('yt-player-container').hidden = false;
+  if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+    ytPlayer.loadVideoById(item.videoId);
+  } else if (ytApiReady) {
+    createYTPlayer(item);
+  } else {
+    pendingYTItem = item;
+  }
+}
 
 // ── Tick (time sync to display) ───────────────────────────────
 function startTick() {
@@ -636,6 +717,8 @@ function resetSync() {
 
 // ── Player controls ───────────────────────────────────────────
 btnPlay.addEventListener('click', () => {
+  if (_counting) return; // don't interrupt countdown
+  if (songCued) { startWithCountdown(); return; }
   if (source === 'local') {
     if (isPlaying) audioEl.pause(); else audioEl.play();
   } else if (source === 'youtube' && ytPlayer) {
