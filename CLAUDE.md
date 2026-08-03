@@ -9,7 +9,40 @@
 
 ## Project Status
 
-This project is newly initialized. The structure, language, and framework choices have not yet been established. This file should be updated as the project evolves.
+The repository now contains a first application: a hair & beauty studio demo site under `salon/`. Root-level tooling, language, and framework choices for the rest of the repo have not yet been established.
+
+## `salon/` — Hair & Beauty Demo Site
+
+A mobile-first demo site for a fictional hair & beauty studio ("Lumière Hair & Beauty Studio"), including an in-browser AI chat assistant ("Lumi") that answers questions about services, products, and studio policies.
+
+### Tech Stack
+
+- **React 19 + TypeScript**, built with **Vite** (`salon/vite.config.ts`).
+- **Tailwind CSS v4** via `@tailwindcss/vite` — theme tokens (colors, fonts, animations) are defined in `salon/src/index.css` under `@theme`, not a `tailwind.config.js`.
+- **react-router-dom** for client-side routing (`salon/src/App.tsx`).
+- No backend — all content lives in `salon/src/data/*.ts`. Forms (booking, contact) simulate submission client-side.
+
+### Project Structure
+
+- `salon/src/pages/` — one file per route (Home, Services, Products, Booking, About, Team, Gallery, Contact, NotFound).
+- `salon/src/components/layout/` — Header (mobile hamburger nav) and Footer.
+- `salon/src/components/ui/` — shared primitives (Button, SectionHeading, Accordion, Img, PageHeader, etc.).
+- `salon/src/components/home/` — Home-page-only sections.
+- `salon/src/components/chatbot/` — the "Lumi" AI assistant: `ChatWidget.tsx` (UI), `chatEngine.ts` (keyword-scoring matcher over services/products/team data), `knowledgeBase.ts` (curated policy/FAQ intents).
+- `salon/src/data/` — services, products, team, testimonials, gallery, FAQs, and studio info (hours, address, etc.). Edit these to change site content.
+
+### Images
+
+Photos are hot-linked from Unsplash (`https://images.unsplash.com/photo-<id>`) via the `Img` component (`salon/src/components/ui/Img.tsx`), which falls back to a styled placeholder if a photo ID ever fails to load — always use `Img`/`PageHeader` rather than a raw `<img>` for content photography.
+
+### Build & Run
+
+```bash
+cd salon
+npm install
+npm run dev      # local dev server
+npm run build    # tsc -b && vite build
+```
 
 ## Development Workflow
 

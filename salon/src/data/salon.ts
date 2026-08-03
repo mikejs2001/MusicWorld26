@@ -1,0 +1,25 @@
+export const salon = {
+  name: "Lumière",
+  fullName: "Lumière Hair & Beauty Studio",
+  tagline: "Modern beauty, made personal.",
+  phone: "(555) 219-4402",
+  email: "hello@lumierestudio.com",
+  address: "128 Marlowe Street, Arts District",
+  city: "Riverton, NY 10021",
+  instagram: "@lumiere.studio",
+  hours: [
+    { day: "Monday", time: "Closed" },
+    { day: "Tuesday", time: "9:00 AM – 7:00 PM" },
+    { day: "Wednesday", time: "9:00 AM – 7:00 PM" },
+    { day: "Thursday", time: "9:00 AM – 8:00 PM" },
+    { day: "Friday", time: "9:00 AM – 8:00 PM" },
+    { day: "Saturday", time: "8:00 AM – 6:00 PM" },
+    { day: "Sunday", time: "10:00 AM – 4:00 PM" },
+  ],
+  social: {
+    instagram: "#",
+    tiktok: "#",
+    facebook: "#",
+    pinterest: "#",
+  },
+};
